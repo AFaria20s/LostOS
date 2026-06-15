@@ -40,51 +40,95 @@ size_t strlen(const char *str) {
 #define VGA_HEIGHT 25
 #define VGA_MEMORY 0xB8000
 
-size_t terminal_row;
-size_t terminal_column;
-uint8_t terminal_color;
-uint16_t *terminal_buffer = (uint16_t *)VGA_MEMORY;
+size_t t_row;
+size_t t_column;
+uint8_t t_color;
+uint16_t *t_buffer = (uint16_t *)VGA_MEMORY;
 
-void terminal_initialize(void) {
-  terminal_row = 0;
-  terminal_column = 0;
-  terminal_color = vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+void t_init(void) {
+  t_row = 0;
+  t_column = 0;
+  t_color = vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 
   for (size_t y = 0; y < VGA_HEIGHT; y++) {
     for (size_t x = 0; x < VGA_WIDTH; x++) {
       const size_t index = y * VGA_WIDTH + x;
-      terminal_buffer[index] = vga_entry(' ', terminal_color);
+      t_buffer[index] = vga_entry(' ', t_color);
     }
   }
 }
 
-void terminal_setcolor(uint8_t color) { terminal_color = color; }
+void t_setcolor(uint8_t color) { t_color = color; }
 
-void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
+void t_putentryat(char c, uint8_t color, size_t x, size_t y) {
   const size_t index = y * VGA_WIDTH + x;
-  terminal_buffer[index] = vga_entry(c, color);
+  t_buffer[index] = vga_entry(c, color);
 }
 
-void terminal_putchar(char c) {
-  terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
-  if (++terminal_column == VGA_WIDTH) {
-    terminal_column = 0;
-    if (++terminal_row == VGA_HEIGHT)
-      terminal_row = 0;
+void t_putchar(char c) {
+  if(c=='\n') {
+    t_column = 0;
+    t_row++;
+    return;
+  }
+
+  t_putentryat(c, t_color, t_column, t_row);
+  if (++t_column == VGA_WIDTH) {
+    t_column = 0;
+    if (++t_row == VGA_HEIGHT)
+      t_row = 0;
   }
 }
 
-void terminal_write(const char *data, size_t size) {
+void t_write(const char *data, size_t size) {
   for (size_t i = 0; i < size; i++)
-    terminal_putchar(data[i]);
+    t_putchar(data[i]);
 }
 
-void terminal_writestring(const char *data) {
-  terminal_write(data, strlen(data));
+void t_print(const char *data) {
+  while (*data) {
+    if (*data == '$') {
+        data++;
+        switch (*data) {
+            case '0': t_setcolor(vga_entry_color(VGA_COLOR_BLACK, VGA_COLOR_BLACK)); break;
+            case '1': t_setcolor(vga_entry_color(VGA_COLOR_BLUE, VGA_COLOR_BLACK)); break;
+            case '2': t_setcolor(vga_entry_color(VGA_COLOR_GREEN, VGA_COLOR_BLACK)); break;
+            case '3': t_setcolor(vga_entry_color(VGA_COLOR_CYAN, VGA_COLOR_BLACK)); break;
+            case '4': t_setcolor(vga_entry_color(VGA_COLOR_RED, VGA_COLOR_BLACK)); break;
+            case '5': t_setcolor(vga_entry_color(VGA_COLOR_MAGENTA, VGA_COLOR_BLACK)); break;
+            case '6': t_setcolor(vga_entry_color(VGA_COLOR_BROWN, VGA_COLOR_BLACK)); break;
+            case '7': t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK)); break;
+            case '8': t_setcolor(vga_entry_color(VGA_COLOR_DARK_GREY, VGA_COLOR_BLACK)); break;
+            case '9': t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK)); break;
+            case 'a': t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK)); break;
+            case 'b': t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK)); break;
+            case 'c': t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK)); break;
+            case 'd': t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK)); break;
+            case 'e': t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BROWN, VGA_COLOR_BLACK)); break;
+            case 'f': t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK)); break;
+            default:  t_putchar('$'); t_putchar(*data); break;
+        }
+        data++;
+    } else {
+        t_putchar(*data);
+        data++;
+    }
+  }
+
+  t_write(data, strlen(data));
 }
 
 void kernel_main(void) {
-  terminal_initialize();
+  t_init();
 
-  terminal_writestring("Hello, kernel World!\n");
+  t_setcolor(vga_entry_color(VGA_COLOR_RED, VGA_COLOR_BLACK));
+  t_print("  ___           _    ___    _  _       ___  ____  \n");
+  t_print(" / _ \\  __  __ / |  / _ \\  | || |     / _ \\/ ___| \n");
+  t_print("| | | | \\ \\/ / | | | (_) | | || |_   | | | \\___ \\  \n");
+  t_print("| |_| |  >  <  | |  \\__, | |__   _|  | |_| |___) | \n");
+  t_print(" \\___/  /_/\\_\\ |_|    /_/     |_|     \\___/|____/  \n");
+                                                   
+  t_print("\n");
+  t_print("$1Welcome $2to $c0x194 OS");
+                                      
 }
