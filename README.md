@@ -14,7 +14,7 @@ sudo apt install gcc nasm qemu-system-x86 grub-pc-bin xorriso make
 ## Running
 
 ```
-git clone https://github.com/0x194/0x194OS
+git clone https://github.com/AFaria20s/0x194OS
 cd 0x194OS
 make run
 ```
