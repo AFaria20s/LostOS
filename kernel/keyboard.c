@@ -1,24 +1,11 @@
 #include <stdint.h>
 
-#include "../include/vga.h"
+#include "../include/io.h"
+#include "../include/keyboard.h"
+#include "../include/shell.h"
 
 #define KEYBOARD_PORT 0x60
 
-extern void shell_input(char c);
-
-// read byte at given port
-static inline uint8_t inb(uint16_t port) {
-  uint8_t val;
-  __asm__ volatile("inb %1, %0" : "=a"(val) : "Nd"(port));
-  return val;
-}
-
-// write byte at given port
-static inline void outb(uint16_t port, uint8_t val) {
-  __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
-}
-
-// normal keyboard symbols
 static const char scancode_normal[] = {
     0,    0,    '1',  '2',  '3',  '4',  '5',  '6',  '7',  '8',  '9',  '0',
     '\'', (char)0xAE, '\b', '\t', 'q',  'w',  'e',  'r',  't',  'y',  'u',  'i',
@@ -27,7 +14,6 @@ static const char scancode_normal[] = {
     'b',  'n',  'm',  ',',  '.',  '-',  0,    '*',  0,    ' '
 };
 
-// shift-activated keyboard symbols
 static const char scancode_shift[] = {
     0,    0,    '!',  '"',  '#',  '$',  '%',  '&',  '/',  '(',  ')',  '=',
     '?',  (char)0xAF, '\b', '\t', 'Q',  'W',  'E',  'R',  'T',  'Y',  'U',  'I',
@@ -39,16 +25,37 @@ static const char scancode_shift[] = {
 static int shift_pressed = 0;
 static int caps_lock = 0;
 
+// Tracks extended scancodes.
+static int extended = 0;
+
 void keyboard_handler(void) {
   uint8_t scancode = inb(KEYBOARD_PORT);
 
-  if(scancode==0x2A || scancode==0x36) shift_pressed = 1; // shift pressed
-  if(scancode==(0x2A | 0x80) || scancode==(0x36 | 0x80)) shift_pressed = 0; // shift released
+  if (scancode == 0xE0) {
+    extended = 1;
+    outb(0x20, 0x20);
+    return;
+  }
 
-  if (scancode == 0x3A) caps_lock = !caps_lock; // caps lock
+  if (extended) {
+    extended = 0;
+    if (!(scancode & 0x80)) {
+      switch (scancode) {
+        case 0x4B: shell_input(KEY_LEFT);   break;
+        case 0x4D: shell_input(KEY_RIGHT);  break;
+        case 0x53: shell_input(KEY_DELETE); break;
+      }
+    }
+    outb(0x20, 0x20);
+    return;
+  }
 
-  // if not released -> 0x80
-  else if (!(scancode & 0x80)) {
+  if (scancode == 0x2A || scancode == 0x36) shift_pressed = 1;
+  if (scancode == (0x2A | 0x80) || scancode == (0x36 | 0x80)) shift_pressed = 0;
+
+  if (scancode == 0x3A) {
+    caps_lock = !caps_lock;
+  } else if (!(scancode & 0x80)) {
     char c = 0;
 
     if (scancode == 0x56) {
@@ -57,7 +64,6 @@ void keyboard_handler(void) {
       c = shift_pressed ? scancode_shift[scancode] : scancode_normal[scancode];
     }
 
-    // caps lock for letters only
     if (caps_lock && !shift_pressed && c >= 'a' && c <= 'z') {
       c = c - 'a' + 'A';
     } else if (caps_lock && shift_pressed && c >= 'A' && c <= 'Z') {

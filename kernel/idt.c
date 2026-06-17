@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#include "../include/io.h"
+#include "../include/keyboard.h"
 #include "../include/vga.h"
 
 #define PIC1_COMMAND 0x20
@@ -7,36 +9,23 @@
 #define PIC2_COMMAND 0xA0
 #define PIC2_DATA 0xA1
 
-extern void keyboard_handler(void);
 extern void keyboard_wrapper(void);
 
-static inline void outb(uint16_t port, uint8_t val) {
-  __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
-}
-
-static inline uint8_t inb(uint16_t port) {
-  uint8_t val;
-  __asm__ volatile("inb %1, %0" : "=a"(val) : "Nd"(port));
-  return val;
-}
-
 void pic_init(void) {
-  // inicializar PIC1 e PIC2
   outb(PIC1_COMMAND, 0x11);
   outb(PIC2_COMMAND, 0x11);
 
-  // remapear IRQs para 0x20-0x2F
+  // Remaps IRQs to 0x20-0x2F.
   outb(PIC1_DATA, 0x20);
   outb(PIC2_DATA, 0x28);
 
-  // configurar cascading
   outb(PIC1_DATA, 0x04);
   outb(PIC2_DATA, 0x02);
 
   outb(PIC1_DATA, 0x01);
   outb(PIC2_DATA, 0x01);
 
-  // mascarar todas as interrupções exceto teclado (IRQ1)
+  // Leaves only the keyboard enabled.
   outb(PIC1_DATA, 0xFD);
   outb(PIC2_DATA, 0xFF);
 }
@@ -70,7 +59,6 @@ void idt_init(void) {
   idtp.limit = (sizeof(struct idt_entry) * 256) - 1;
   idtp.base = (uint32_t)&idt;
 
-  // limpar a IDT toda
   for (int i = 0; i < 256; i++)
     idt_set_gate(i, 0, 0, 0);
 
@@ -78,5 +66,5 @@ void idt_init(void) {
   idt_set_gate(0x21, (uint32_t)keyboard_wrapper, 0x08, 0x8E);
 
   __asm__ volatile("lidt %0" : : "m"(idtp));
-  __asm__ volatile("sti"); // ativar interrupções
+  __asm__ volatile("sti");
 }

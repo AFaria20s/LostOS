@@ -2,6 +2,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "../include/io.h"
+#include "../include/kstring.h"
+#include "../include/shell.h"
 #include "../include/vga.h"
 
 extern void idt_init(void);
@@ -33,15 +36,6 @@ static inline uint16_t vga_entry(unsigned char uc, uint8_t color) {
   return (uint16_t)uc | (uint16_t)color << 8;
 }
 
-size_t strlen(const char *str) {
-  size_t len = 0;
-  while (str[len])
-    len++;
-  return len;
-}
-
-#define VGA_WIDTH 80
-#define VGA_HEIGHT 25
 #define VGA_MEMORY 0xB8000
 
 size_t t_row;
@@ -67,6 +61,43 @@ void t_setcolor(uint8_t color) { t_color = color; }
 void t_putentryat(char c, uint8_t color, size_t x, size_t y) {
   const size_t index = y * VGA_WIDTH + x;
   t_buffer[index] = vga_entry(c, color);
+}
+
+void t_clear(void) {
+  for (size_t y = 0; y < VGA_HEIGHT; y++) {
+    for (size_t x = 0; x < VGA_WIDTH; x++) {
+      const size_t index = y * VGA_WIDTH + x;
+      t_buffer[index] = vga_entry(' ', t_color);
+    }
+  }
+
+  t_row = 0;
+  t_column = 0;
+  vga_update_cursor(t_column, t_row);
+}
+
+// Enables the text cursor.
+void vga_enable_cursor(uint8_t cursor_start, uint8_t cursor_end) {
+  outb(0x3D4, 0x0A);
+  outb(0x3D5, (inb(0x3D5) & 0xC0) | cursor_start);
+
+  outb(0x3D4, 0x0B);
+  outb(0x3D5, (inb(0x3D5) & 0xE0) | cursor_end);
+}
+
+void vga_disable_cursor(void) {
+  outb(0x3D4, 0x0A);
+  outb(0x3D5, 0x20);
+}
+
+// Moves the text cursor.
+void vga_update_cursor(size_t col, size_t row) {
+  uint16_t pos = (uint16_t)(row * VGA_WIDTH + col);
+
+  outb(0x3D4, 0x0F);
+  outb(0x3D5, (uint8_t)(pos & 0xFF));
+  outb(0x3D4, 0x0E);
+  outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
 void t_putchar(char c) {
@@ -154,13 +185,14 @@ void t_print(const char *data) {
     }
   }
 
-  t_write(data, strlen(data));
+  t_write(data, k_strlen(data));
 }
 
 void kernel_main(void) {
   t_init();
   gdt_init();
   idt_init();
+  vga_enable_cursor(14, 15);
 
   t_setcolor(vga_entry_color(VGA_COLOR_MAGENTA, VGA_COLOR_BLACK));
   t_print("\n");
@@ -173,5 +205,7 @@ void kernel_main(void) {
   t_print("\n");
   t_print("$1Welcome $2to $c0x194 OS\n");
 
-  for(;;); // infinite kernel loop
+  shell_prompt();
+
+  for(;;);
 }

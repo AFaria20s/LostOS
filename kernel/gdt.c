@@ -31,19 +31,19 @@ void gdt_init(void) {
     gdtp.limit = (sizeof(struct gdt_entry) * 3) - 1;
     gdtp.base  = (uint32_t)&gdt;
 
-    gdt_set_gate(0, 0, 0,          0x00, 0x00); // null
-    gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF); // code
-    gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF); // data
+    gdt_set_gate(0, 0, 0,          0x00, 0x00);
+    gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);
+    gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF);
 
     __asm__ volatile (
         "lgdt %0\n"
-        "mov $0x10, %%ax\n"   // data segment selector
+        "mov $0x10, %%ax\n"
         "mov %%ax, %%ds\n"
         "mov %%ax, %%es\n"
         "mov %%ax, %%fs\n"
         "mov %%ax, %%gs\n"
         "mov %%ax, %%ss\n"
-        "ljmp $0x08, $1f\n"   // far jump para recarregar CS
+        "ljmp $0x08, $1f\n"
         "1:\n"
         : : "m"(gdtp) : "ax"
     );
