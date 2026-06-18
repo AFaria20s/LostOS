@@ -1,5 +1,6 @@
 #include "../include/commands.h"
 #include "../include/kstring.h"
+#include "../include/shell.h"
 #include "../include/vga.h"
 
 #define CMD_MAX_ARGS 16
@@ -16,13 +17,18 @@ static void cmd_help(int argc, char **argv);
 static void cmd_clear(int argc, char **argv);
 static void cmd_echo(int argc, char **argv);
 static void cmd_argc(int argc, char **argv);
+static void cmd_history(int argc, char **argv);
+static void cmd_sudo(int argc, char **argv);
 
-// Command table.
+// Command table
+// leave description empty/NULL to not show on "help"
 static const struct command commands[] = {
   {"help", "lists available commands", cmd_help},
   {"clear", "clears the screen", cmd_clear},
   {"echo", "prints the received arguments", cmd_echo},
   {"argc", "shows how many arguments were received", cmd_argc},
+  {"history", "prints command history", cmd_history},
+  {"sudo", NULL, cmd_sudo},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
@@ -33,6 +39,9 @@ static void cmd_help(int argc, char **argv) {
 
   t_print("Available commands:\n");
   for (int i = 0; i < command_count; i++) {
+    // check if command does not want to appear in "help"
+    if (commands[i].description == NULL || commands[i].description[0] == '\0') continue;
+
     t_print("  ");
     t_print(commands[i].name);
     t_print(" - ");
@@ -65,6 +74,17 @@ static void cmd_argc(int argc, char **argv) {
   k_itoa(argc, number, 10);
   t_print(number);
   t_putchar('\n');
+}
+
+static void cmd_history(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
+
+  shell_print_history();
+}
+
+static void cmd_sudo(int argc, char **argv) {
+  t_print("Nice try! Im just a tea pot...\n");
 }
 
 void cmd_execute(char *line) {

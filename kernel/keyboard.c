@@ -43,7 +43,11 @@ void keyboard_handler(void) {
       switch (scancode) {
         case 0x4B: shell_input(KEY_LEFT);   break;
         case 0x4D: shell_input(KEY_RIGHT);  break;
+        case 0x48: shell_input(KEY_UP);     break;
+        case 0x50: shell_input(KEY_DOWN);   break;
         case 0x53: shell_input(KEY_DELETE); break;
+        case 0x49: shell_input(KEY_PGUP);   break;
+        case 0x51: shell_input(KEY_PGDOWN); break;
       }
     }
     outb(0x20, 0x20);
@@ -58,7 +62,23 @@ void keyboard_handler(void) {
   } else if (!(scancode & 0x80)) {
     char c = 0;
 
-    if (scancode == 0x56) {
+    if (scancode == 0x48) {
+      shell_input(KEY_UP);
+      outb(0x20, 0x20);
+      return;
+    } else if (scancode == 0x50) {
+      shell_input(KEY_DOWN);
+      outb(0x20, 0x20);
+      return;
+    } else if (scancode == 0x49) {
+      shell_input(KEY_PGUP);
+      outb(0x20, 0x20);
+      return;
+    } else if (scancode == 0x51) {
+      shell_input(KEY_PGDOWN);
+      outb(0x20, 0x20);
+      return;
+    } else if (scancode == 0x56) {
       c = shift_pressed ? '>' : '<';
     } else if (scancode < sizeof(scancode_normal)) {
       c = shift_pressed ? scancode_shift[scancode] : scancode_normal[scancode];
