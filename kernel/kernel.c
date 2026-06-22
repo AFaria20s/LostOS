@@ -18,33 +18,6 @@ static const char *old_boot_logo =
 "| |_| |  >  <  | |  \\__, | |__   _|  | |_| |___) | \n"
 " \\___/  /_/\\_\\ |_|    /_/     |_|     \\___/|____/  \n";
 
-enum vga_color {
-  VGA_COLOR_BLACK = 0,
-  VGA_COLOR_BLUE = 1,
-  VGA_COLOR_GREEN = 2,
-  VGA_COLOR_CYAN = 3,
-  VGA_COLOR_RED = 4,
-  VGA_COLOR_MAGENTA = 5,
-  VGA_COLOR_BROWN = 6,
-  VGA_COLOR_LIGHT_GREY = 7,
-  VGA_COLOR_DARK_GREY = 8,
-  VGA_COLOR_LIGHT_BLUE = 9,
-  VGA_COLOR_LIGHT_GREEN = 10,
-  VGA_COLOR_LIGHT_CYAN = 11,
-  VGA_COLOR_LIGHT_RED = 12,
-  VGA_COLOR_LIGHT_MAGENTA = 13,
-  VGA_COLOR_LIGHT_BROWN = 14,
-  VGA_COLOR_WHITE = 15,
-};
-
-static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
-  return fg | bg << 4;
-}
-
-static inline uint16_t vga_entry(unsigned char uc, uint8_t color) {
-  return (uint16_t)uc | (uint16_t)color << 8;
-}
-
 #define VGA_MEMORY 0xB8000
 #define VGA_SCROLLBACK_HEIGHT 256
 
@@ -229,72 +202,84 @@ void t_print_raw(const char *data) {
   t_write(data, k_strlen(data));
 }
 
+static void t_print_color_code(char code) {
+  switch (code) {
+  case '0':
+    t_setcolor(vga_entry_color(VGA_COLOR_BLACK, VGA_COLOR_BLACK));
+    break;
+  case '1':
+    t_setcolor(vga_entry_color(VGA_COLOR_BLUE, VGA_COLOR_BLACK));
+    break;
+  case '2':
+    t_setcolor(vga_entry_color(VGA_COLOR_GREEN, VGA_COLOR_BLACK));
+    break;
+  case '3':
+    t_setcolor(vga_entry_color(VGA_COLOR_CYAN, VGA_COLOR_BLACK));
+    break;
+  case '4':
+    t_setcolor(vga_entry_color(VGA_COLOR_RED, VGA_COLOR_BLACK));
+    break;
+  case '5':
+    t_setcolor(vga_entry_color(VGA_COLOR_MAGENTA, VGA_COLOR_BLACK));
+    break;
+  case '6':
+    t_setcolor(vga_entry_color(VGA_COLOR_BROWN, VGA_COLOR_BLACK));
+    break;
+  case '7':
+    t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
+    break;
+  case '8':
+    t_setcolor(vga_entry_color(VGA_COLOR_DARK_GREY, VGA_COLOR_BLACK));
+    break;
+  case '9':
+    t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK));
+    break;
+  case 'a':
+    t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK));
+    break;
+  case 'b':
+    t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK));
+    break;
+  case 'c':
+    t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK));
+    break;
+  case 'd':
+    t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK));
+    break;
+  case 'e':
+    t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BROWN, VGA_COLOR_BLACK));
+    break;
+  case 'f':
+    t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+    break;
+  default:
+    break;
+  }
+}
+
 void t_print(const char *data) {
   while (*data) {
     if (*data == '$') {
-      data++;
-      switch (*data) {
-      case '0':
-        t_setcolor(vga_entry_color(VGA_COLOR_BLACK, VGA_COLOR_BLACK));
-        break;
-      case '1':
-        t_setcolor(vga_entry_color(VGA_COLOR_BLUE, VGA_COLOR_BLACK));
-        break;
-      case '2':
-        t_setcolor(vga_entry_color(VGA_COLOR_GREEN, VGA_COLOR_BLACK));
-        break;
-      case '3':
-        t_setcolor(vga_entry_color(VGA_COLOR_CYAN, VGA_COLOR_BLACK));
-        break;
-      case '4':
-        t_setcolor(vga_entry_color(VGA_COLOR_RED, VGA_COLOR_BLACK));
-        break;
-      case '5':
-        t_setcolor(vga_entry_color(VGA_COLOR_MAGENTA, VGA_COLOR_BLACK));
-        break;
-      case '6':
-        t_setcolor(vga_entry_color(VGA_COLOR_BROWN, VGA_COLOR_BLACK));
-        break;
-      case '7':
-        t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
-        break;
-      case '8':
-        t_setcolor(vga_entry_color(VGA_COLOR_DARK_GREY, VGA_COLOR_BLACK));
-        break;
-      case '9':
-        t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK));
-        break;
-      case 'a':
-        t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK));
-        break;
-      case 'b':
-        t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK));
-        break;
-      case 'c':
-        t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK));
-        break;
-      case 'd':
-        t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK));
-        break;
-      case 'e':
-        t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BROWN, VGA_COLOR_BLACK));
-        break;
-      case 'f':
-        t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
-        break;
-      default:
+      char next = *(data + 1);
+
+      if (next == '\0') {
         t_putchar('$');
-        t_putchar(*data);
         break;
       }
+
+      if ((next >= '0' && next <= '9') || (next >= 'a' && next <= 'f')) {
+        t_print_color_code(next);
+        data += 2;
+        continue;
+      }
+
+      t_putchar('$');
       data++;
     } else {
       t_putchar(*data);
       data++;
     }
   }
-
-  t_write(data, k_strlen(data));
 }
 
 static void print_boot_status(const char *label, int ok) {

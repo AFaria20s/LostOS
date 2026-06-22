@@ -79,7 +79,7 @@ static void cmd_echo(int argc, char **argv) {
   for (int i = 1; i < argc; i++) {
     if (i > 1)
       t_putchar(' ');
-    t_print_raw(argv[i]);
+    t_print(argv[i]);
   }
 
   t_putchar('\n');

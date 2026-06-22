@@ -360,6 +360,7 @@ static void shell_move_right(void) {
 }
 
 void shell_prompt(void) {
+  t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
   t_print("$c404$f@$30x194$f:~$ ");
 
   prompt_col = t_column;
