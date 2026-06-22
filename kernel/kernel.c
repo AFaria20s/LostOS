@@ -1,12 +1,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "../include/gdt.h"
+#include "../include/idt.h"
+#include "../include/keyboard.h"
 #include "../include/memory.h"
 #include "../include/shell.h"
 #include "../include/vga.h"
-
-extern void idt_init(void);
-extern void gdt_init(void);
 
 static const char *old_boot_logo =
 "  ___           _    ___    _  _       ___  ____  \n"
@@ -31,9 +31,10 @@ static void welcome_screen(void) {
   t_print("$8Build: multiboot, VGA text, PS/2 keyboard, kernel heap$f\n\n");
 
   t_print("$bBoot status$f\n");
-  print_boot_status("GDT loaded", 1);
-  print_boot_status("IDT loaded", 1);
-  print_boot_status("Keyboard IRQ ready", 1);
+  print_boot_status("GDT loaded", gdt_is_ready());
+  print_boot_status("IDT loaded", idt_is_ready());
+  print_boot_status("Keyboard driver ready", keyboard_is_ready());
+  print_boot_status("Keyboard IRQ ready", idt_keyboard_irq_is_ready());
   print_boot_status("Kernel heap ready", memory_is_ready());
 
   t_print("\n$bUseful commands$f\n");
@@ -47,12 +48,20 @@ static void welcome_screen(void) {
 void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
   t_init();
   memory_init(multiboot_magic, multiboot_info_addr);
-  gdt_init();
-  idt_init();
+  int gdt_ok = gdt_init();
+  int idt_ok = 0;
+
+  if (gdt_ok)
+    idt_ok = idt_init();
+
   vga_enable_cursor(14, 15);
 
   welcome_screen();
-  shell_prompt();
+
+  if (idt_ok)
+    shell_prompt();
+  else
+    t_print("\n$cBoot stopped: interrupts are not ready.$f\n");
 
   for (;;)
     ;

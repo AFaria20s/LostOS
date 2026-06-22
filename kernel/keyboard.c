@@ -36,6 +36,14 @@ static int caps_lock = 0;
 static int altgr_pressed = 0;
 static int extended = 0;
 
+int keyboard_is_ready(void) {
+  return cur_layout != 0 &&
+         cur_layout->name != 0 &&
+         cur_layout->normal != 0 &&
+         cur_layout->shift != 0 &&
+         cur_layout->size > 0;
+}
+
 static void send_eoi(void) {
   outb(PIC_EOI, PIC_EOI);
 }

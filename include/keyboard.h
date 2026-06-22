@@ -12,6 +12,7 @@
 #define KEY_SCROLL_DOWN  0x108
 
 void keyboard_handler(void);
+int keyboard_is_ready(void);
 int keyboard_set_layout(const char *name);
 const char *keyboard_get_layout(void);
 

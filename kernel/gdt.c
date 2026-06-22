@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#include "../include/gdt.h"
+
 // GDT entry (Global Descriptor Table)
 struct gdt_entry {
     uint16_t limit_low;
@@ -18,6 +20,7 @@ struct gdt_ptr {
 
 static struct gdt_entry gdt[3];
 static struct gdt_ptr   gdtp;
+static int gdt_ready = 0;
 
 // Set a GDT entry
 static void gdt_set_gate(int num, uint32_t base, uint32_t limit,
@@ -30,10 +33,12 @@ static void gdt_set_gate(int num, uint32_t base, uint32_t limit,
     gdt[num].access      = access;
 }
 
-void gdt_init(void) {
+int gdt_init(void) {
+    struct gdt_ptr loaded_gdt;
+
     // Initialize and load GDT with three entries
     gdtp.limit = (sizeof(struct gdt_entry) * 3) - 1;
-    gdtp.base  = (uint32_t)&gdt;
+    gdtp.base  = (uint32_t)gdt;
 
     gdt_set_gate(0, 0, 0,          0x00, 0x00);
     gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);
@@ -49,6 +54,17 @@ void gdt_init(void) {
         "mov %%ax, %%ss\n"
         "ljmp $0x08, $1f\n"
         "1:\n"
-        : : "m"(gdtp) : "ax"
+        : : "m"(gdtp) : "ax", "memory"
     );
+
+    __asm__ volatile ("sgdt %0" : "=m"(loaded_gdt));
+
+    gdt_ready = loaded_gdt.limit == gdtp.limit &&
+                loaded_gdt.base == gdtp.base;
+
+    return gdt_ready;
+}
+
+int gdt_is_ready(void) {
+    return gdt_ready;
 }
