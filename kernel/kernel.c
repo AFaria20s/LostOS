@@ -327,6 +327,7 @@ static void welcome_screen(void) {
 }
 
 void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
+  // Kernel entry point. Initialize subsystems and start shell
   t_init();
   memory_init(multiboot_magic, multiboot_info_addr);
   gdt_init();

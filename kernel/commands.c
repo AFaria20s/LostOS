@@ -158,7 +158,7 @@ static void print_hex(uintptr_t value) {
   out[1] = 'x';
   for (int i = 0; i < 8; i++) {
     int shift = 28 - i * 4;
-    out[2 + i] = digits[(value >> shift) & 0xF];
+  out[2 + i] = digits[(value >> shift) & 0xF];
   }
   out[10] = '\0';
   t_print_raw(out);
