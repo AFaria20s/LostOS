@@ -5,6 +5,7 @@
 #include "../include/idt.h"
 #include "../include/keyboard.h"
 #include "../include/memory.h"
+#include "../include/paging.h"
 #include "../include/shell.h"
 #include "../include/vga.h"
 
@@ -36,10 +37,12 @@ static void welcome_screen(void) {
   print_boot_status("Keyboard driver ready", keyboard_is_ready());
   print_boot_status("Keyboard IRQ ready", idt_keyboard_irq_is_ready());
   print_boot_status("Kernel heap ready", memory_is_ready());
+  print_boot_status("Paging enabled", paging_is_enabled());
 
   t_print("\n$bUseful commands$f\n");
   t_print("help        list commands\n");
   t_print("mem         inspect kernel memory\n");
+  t_print("paging      inspect virtual memory\n");
   t_print("mem test -d run detailed heap test\n");
   t_print("layout      show or change keyboard layout\n");
   t_print("history     show command history\n\n");
@@ -49,9 +52,13 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
   t_init();
   memory_init(multiboot_magic, multiboot_info_addr);
   int gdt_ok = gdt_init();
+  int paging_ok = 0;
   int idt_ok = 0;
 
   if (gdt_ok)
+    paging_ok = paging_init();
+
+  if (gdt_ok && paging_ok)
     idt_ok = idt_init();
 
   vga_enable_cursor(14, 15);
@@ -60,6 +67,8 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
 
   if (idt_ok)
     shell_prompt();
+  else if (!paging_ok)
+    t_print("\n$cBoot stopped: paging is not ready.$f\n");
   else
     t_print("\n$cBoot stopped: interrupts are not ready.$f\n");
 

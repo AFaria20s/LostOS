@@ -5,6 +5,7 @@
 #include "../include/keyboard.h"
 #include "../include/keyboard_layouts.h"
 #include "../include/memory.h"
+#include "../include/paging.h"
 
 // Maximum arguments per command
 #define CMD_MAX_ARGS 16
@@ -26,6 +27,7 @@ static void cmd_history(int argc, char **argv);
 static void cmd_sudo(int argc, char **argv);
 static void cmd_layout(int argc, char **argv);
 static void cmd_mem(int argc, char **argv);
+static void cmd_paging(int argc, char **argv);
 
 // Command table
 // leave description empty/NULL to not show on "help"
@@ -38,6 +40,7 @@ static const struct command commands[] = {
   {"sudo", NULL, cmd_sudo},
   {"layout", "show or set keyboard layout", cmd_layout},
   {"mem", "shows kernel memory usage", cmd_mem},
+  {"paging", "shows paging status", cmd_paging},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
@@ -158,7 +161,7 @@ static void print_hex(uintptr_t value) {
   out[1] = 'x';
   for (int i = 0; i < 8; i++) {
     int shift = 28 - i * 4;
-  out[2 + i] = digits[(value >> shift) & 0xF];
+    out[2 + i] = digits[(value >> shift) & 0xF];
   }
   out[10] = '\0';
   t_print_raw(out);
@@ -280,6 +283,38 @@ static void cmd_mem(int argc, char **argv) {
   print_bytes_and_kib("Free heap   ", stats.free_bytes);
   t_print("Allocations ");
   print_uint(stats.allocation_count);
+  t_putchar('\n');
+}
+
+static void cmd_paging(int argc, char **argv) {
+  struct paging_stats stats;
+
+  if (argc > 1 && k_strcmp(argv[1], "test") == 0) {
+    t_print("paging test: ");
+    t_print(paging_test() ? "$aok$f\n" : "$cfailed$f\n");
+    return;
+  }
+
+  (void)argv;
+  paging_get_stats(&stats);
+
+  t_print("$bPaging$f\n");
+  t_print("Status      ");
+  t_print(stats.enabled ? "$aenabled$f\n" : "$cdisabled$f\n");
+
+  t_print("Directory   ");
+  print_hex(stats.directory_addr);
+  t_putchar('\n');
+
+  t_print("Mapped      ");
+  print_hex(stats.mapped_start);
+  t_print(" - ");
+  print_hex(stats.mapped_end);
+  t_putchar('\n');
+
+  print_kib("Mapped size ", stats.mapped_bytes);
+  t_print("Pages       ");
+  print_uint(stats.page_count);
   t_putchar('\n');
 }
 
