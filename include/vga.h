@@ -48,6 +48,7 @@ void t_scroll(void);
 void t_scroll_view_up(void);
 void t_scroll_view_down(void);
 void t_scroll_to_bottom(void);
+void t_print_padded(const char *text, int width);
 
 // Clears the screen.
 void t_clear(void);

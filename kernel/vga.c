@@ -186,6 +186,15 @@ void t_print_raw(const char *data) {
   t_write(data, k_strlen(data));
 }
 
+void t_print_padded(const char *text, int width) {
+  int len = 0;
+  t_print(text);
+  while (text[len])
+    len++;
+  while (len++ < width)
+    t_putchar(' ');
+}
+
 static void t_print_color_code(char code) {
   switch (code) {
   case '0':
@@ -264,4 +273,6 @@ void t_print(const char *data) {
       data++;
     }
   }
+
+  t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));  // reset color
 }

@@ -22,7 +22,8 @@ kernel.bin: $(KERNEL_ASM) $(KERNEL_C)
 	$(CC) $(CFLAGS) -c kernel/kstring.c -o kstring.o
 	$(CC) $(CFLAGS) -c kernel/memory.c -o memory.o
 	$(CC) $(CFLAGS) -c kernel/paging.c -o paging.o
-	ld -m elf_i386 -T linker.ld -o kernel.bin boot.o interrupt.o kernel.o vga.o gdt.o idt.o keyboard.o keyboard_layouts.o shell.o commands.o kstring.o memory.o paging.o
+	$(CC) $(CFLAGS) -c kernel/sysinfo.c -o sysinfo.o
+	ld -m elf_i386 -T linker.ld -o kernel.bin boot.o interrupt.o kernel.o vga.o gdt.o idt.o keyboard.o keyboard_layouts.o shell.o commands.o kstring.o memory.o paging.o sysinfo.o
 
 os.iso: kernel.bin
 	mkdir -p isodir/boot/grub
@@ -31,7 +32,7 @@ os.iso: kernel.bin
 	grub-mkrescue -o os.iso isodir
 
 run: os.iso
-	qemu-system-x86_64 -boot d -cdrom os.iso
+	qemu-system-x86_64 -boot d -cdrom os.iso -m 512M
 
 clean:
 	rm -rf *.o *.bin *.iso isodir

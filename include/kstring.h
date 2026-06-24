@@ -13,4 +13,12 @@ int k_split(char *line, char **argv, int max_args);
 // Converts an integer to text.
 void k_itoa(int value, char *buffer, int base);
 
+// Concatenates 2 strings
+void k_strcat(char *dest, const char *src1, const char *src2, const char *sep);
+
+// Index 'src' at the end of 'dest' (assuming valid '\0')
+void k_strapp(char *dest, const char *src);
+
+void k_strcp(char *dest, const char *src);
+
 #endif
