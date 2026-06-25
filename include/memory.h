@@ -13,7 +13,7 @@ struct multiboot_info {
 };
 
 struct memory_stats {
-  uintptr_t kernel_start;
+  uintptr_t kernel_start; 
   uintptr_t kernel_end;
   uintptr_t heap_start;
   uintptr_t heap_end;

@@ -86,3 +86,34 @@ void k_itoa(int value, char *buffer, int base) {
 
   *buffer = '\0';
 }
+
+void k_strcp(char *dest, const char *src) {
+  int i = 0;
+  while (src[i]!='\0') {
+    dest[i] = src[i];
+    i++;
+  }
+  dest[i]='\0';
+}
+
+// Index 'src' at the end of 'dest' (assuming valid '\0')
+void k_strapp(char *dest, const char *src) {
+  int i = k_strlen(dest);
+  int j = 0;
+
+  while (src[j] != '\0') {
+    dest[i] = src[j];
+    i++;
+    j++;
+  }
+  dest[i] = '\0';
+}
+
+// Concatenate 2 strings
+void k_strcat(char *dest, const char *src1, const char *src2, const char *sep) {
+  k_strcp(dest, src1);
+
+  if (sep != NULL) k_strapp(dest, sep);
+
+  k_strapp(dest, src2);
+}

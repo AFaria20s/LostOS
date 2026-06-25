@@ -6,6 +6,7 @@
 #include "../include/keyboard_layouts.h"
 #include "../include/memory.h"
 #include "../include/paging.h"
+#include "../include/sysinfo.h"
 
 // Maximum arguments per command
 #define CMD_MAX_ARGS 16
@@ -28,6 +29,8 @@ static void cmd_sudo(int argc, char **argv);
 static void cmd_layout(int argc, char **argv);
 static void cmd_mem(int argc, char **argv);
 static void cmd_paging(int argc, char **argv);
+static void cmd_whatami(int argc, char **argv);
+static void print_uint(size_t value);
 
 // Command table
 // leave description empty/NULL to not show on "help"
@@ -41,9 +44,66 @@ static const struct command commands[] = {
   {"layout", "show or set keyboard layout", cmd_layout},
   {"mem", "shows kernel memory usage", cmd_mem},
   {"paging", "shows paging status", cmd_paging},
+  {"whatami", "where are you?", cmd_whatami},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
+
+// Imprime um numero com 2 digitos, com zero a esquerda se for < 10
+static void print_uint2(uint8_t value) {
+  if (value < 10)
+    t_putchar('0');
+  print_uint(value);
+}
+
+static void cmd_whatami(int argc, char **argv) {
+  cmd_clear(argc, argv);
+  const int PADDING = 15;
+  struct system_info sysinfo;
+  (void)argc;
+  (void)argv;
+
+  t_print("$dEnvironment Specifications:\n\n");
+
+  system_getinfo(&sysinfo);
+  t_print_padded("OS", PADDING);
+  t_print(sysinfo.os_name);
+  t_putchar('\n');
+  t_print_padded("Architecture", PADDING);
+  t_print(sysinfo.architecture);
+  t_putchar('\n');
+  t_print_padded("Build", PADDING);
+  t_print(sysinfo.build);
+  t_putchar('\n');
+  t_print_padded("CPU", PADDING); t_print(sysinfo.cpu); t_putchar('\n');
+  t_print_padded("GPU", PADDING); t_print(sysinfo.gpu); t_putchar('\n');  
+  t_print_padded("RAM Size", PADDING);
+  print_uint(sysinfo.ram_kib);
+  t_print(" KiB\n");
+  t_print_padded("Heap Used", PADDING);
+  print_uint(sysinfo.heap_used);
+  t_print(" bytes\n");
+  t_print_padded("Heap Free", PADDING);
+  print_uint(sysinfo.heap_free);
+  t_print(" bytes\n");
+  t_print_padded("Disk Size", PADDING);
+  print_uint(sysinfo.disk_mb);
+  t_print(" MiB\n");
+  t_print_padded("Date", PADDING);
+  print_uint2(sysinfo.day);
+  t_putchar('/');
+  print_uint2(sysinfo.month);
+  t_print("/20");
+  print_uint2(sysinfo.year);
+  t_putchar('\n');
+  t_print_padded("Time", PADDING);
+  print_uint2(sysinfo.hour);
+  t_putchar(':');
+  print_uint2(sysinfo.minute);
+  t_putchar(':');
+  print_uint2(sysinfo.second);
+  t_putchar('\n');
+}
 
 static void print_padded(const char *text, int width) {
   int len = 0;
@@ -60,7 +120,7 @@ static void cmd_help(int argc, char **argv) {
   (void)argc;
   (void)argv;
 
-  t_print("$bCommand     Description$f\n\n");
+  t_print("$dCommand / Description$f\n\n");
   for (int i = 0; i < command_count; i++) {
     if (commands[i].description == NULL || commands[i].description[0] == '\0')
       continue;
@@ -263,7 +323,7 @@ static void cmd_mem(int argc, char **argv) {
     return;
   }
 
-  t_print("$bMemory map$f\n");
+  t_print("$dMemory map$f\n");
   t_print("Kernel      ");
   print_hex(stats.kernel_start);
   t_print(" - ");
@@ -276,7 +336,7 @@ static void cmd_mem(int argc, char **argv) {
   print_hex(stats.heap_end);
   t_putchar('\n');
 
-  t_print("\n$bUsage$f\n");
+  t_print("\n$dUsage$f\n");
   print_kib("Total       ", stats.total_bytes);
   print_bytes_and_kib("Heap size   ", stats.heap_bytes);
   print_bytes_and_kib("Used heap   ", stats.used_bytes);
@@ -298,7 +358,7 @@ static void cmd_paging(int argc, char **argv) {
   (void)argv;
   paging_get_stats(&stats);
 
-  t_print("$bPaging$f\n");
+  t_print("$dPaging$f\n");
   t_print("Status      ");
   t_print(stats.enabled ? "$aenabled$f\n" : "$cdisabled$f\n");
 
