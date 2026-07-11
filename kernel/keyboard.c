@@ -124,6 +124,12 @@ void keyboard_handler(void) {
     return;
   }
 
+  if(key == SCANCODE_TAB && !is_release) {
+    shell_input(KEY_TAB);
+    send_eoi();
+    return;
+  }
+
   if (is_release) {
     send_eoi();
     return;

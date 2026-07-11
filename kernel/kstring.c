@@ -117,3 +117,16 @@ void k_strcat(char *dest, const char *src1, const char *src2, const char *sep) {
 
   k_strapp(dest, src2);
 }
+
+int k_strncmp(const char *a, const char *b, size_t n) {
+  while (n > 0 && *a && (*a == *b)) {
+    a++;
+    b++;
+    n--;
+  }
+
+  if (n == 0)
+    return 0;
+
+  return (unsigned char)*a - (unsigned char)*b;
+}

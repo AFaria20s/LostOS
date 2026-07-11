@@ -313,6 +313,10 @@ static void shell_insert_char(char c) {
   buffer_len++;
   cursor_pos++;
 
+  input_buffer[buffer_len] = '\0';
+
+  shell_redraw_from(cursor_pos - 1);
+
   shell_redraw_from(cursor_pos - 1);
 }
 
@@ -328,6 +332,10 @@ static void shell_delete_before_cursor(void) {
   buffer_len--;
   cursor_pos--;
 
+  input_buffer[buffer_len] = '\0';
+
+  shell_redraw_from(cursor_pos);
+
   shell_redraw_from(cursor_pos);
 }
 
@@ -341,6 +349,10 @@ static void shell_delete_at_cursor(void) {
   }
 
   buffer_len--;
+
+  input_buffer[buffer_len] = '\0';
+
+  shell_redraw_from(cursor_pos);
 
   shell_redraw_from(cursor_pos);
 }
@@ -389,6 +401,10 @@ void shell_process(void) {
   shell_prompt();
 }
 
+static void shell_putc(char c) {
+    shell_insert_char(c);
+}
+
 void shell_input(int key) {
   switch (key) {
     case '\n':
@@ -428,6 +444,14 @@ void shell_input(int key) {
           shell_replace_input(h);
       }
       break;
+    case KEY_TAB: {
+      int matches = cmd_autocomplete(input_buffer, shell_putc);
+      if (matches > 1) {
+          shell_prompt();
+          t_print(input_buffer);
+      }
+      break;
+    }
     default:
       if (key >= ' ' && key <= 0xFF)
         shell_insert_char((char)key);

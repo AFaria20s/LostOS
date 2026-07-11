@@ -49,6 +49,45 @@ static const struct command commands[] = {
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
 
+int cmd_autocomplete(const char *prefix, void (*putc)(char))
+{
+    int prefix_len = k_strlen(prefix);
+    const char *match = NULL;
+    int matches = 0;
+
+    for (int i = 0; i < command_count; i++) {
+        if (k_strncmp(commands[i].name, prefix, prefix_len) == 0) {
+            match = commands[i].name;
+            matches++;
+        }
+    }
+
+    if (matches == 0)
+        return 0;
+
+    if (matches == 1) {
+        const char *p = match + prefix_len;
+
+        while (*p)
+            putc(*p++);
+
+        return 1;
+    }
+
+    t_putchar('\n');
+
+    for (int i = 0; i < command_count; i++) {
+        if (k_strncmp(commands[i].name, prefix, prefix_len) == 0) {
+            t_print(commands[i].name);
+            t_putchar(' ');
+        }
+    }
+
+    t_putchar('\n');
+
+    return matches;
+}
+
 // Imprime um numero com 2 digitos, com zero a esquerda se for < 10
 static void print_uint2(uint8_t value) {
   if (value < 10)

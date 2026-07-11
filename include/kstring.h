@@ -21,4 +21,7 @@ void k_strapp(char *dest, const char *src);
 
 void k_strcp(char *dest, const char *src);
 
+// Compare first n characters from string
+int k_strncmp(const char *a, const char *b, size_t n);
+
 #endif
