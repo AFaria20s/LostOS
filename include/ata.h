@@ -18,8 +18,14 @@ struct ata_info {
     uint64_t size_mb;       // size in MB
 };
 
-// Initialize and identify the primary master ATA drive.
-// Returns 1 if a drive was found, 0 otherwise.
+// Initialize and identify the primary master ATA drive
+// returns 1 if a drive was found and 0 if not
 int ata_identify(struct ata_info *info);
+// Reads a disk sector and store it in buffer
+// returns 1 if success
+int ata_read_sector(uint32_t lba, uint16_t *buf);
+
+int ata_init(void);
+int ata_is_ready(void);
 
 #endif

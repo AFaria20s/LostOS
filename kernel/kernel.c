@@ -8,6 +8,7 @@
 #include "../include/paging.h"
 #include "../include/shell.h"
 #include "../include/vga.h"
+#include "../include/ata.h"
 
 static const char *old_boot_logo =
 "  ___           _    ___    _  _       ___  ____  \n"
@@ -38,6 +39,9 @@ static void welcome_screen(void) {
   print_boot_status("Keyboard IRQ ready", idt_keyboard_irq_is_ready());
   print_boot_status("Kernel heap ready", memory_is_ready());
   print_boot_status("Paging enabled", paging_is_enabled());
+  print_boot_status("ATA drive detected", ata_is_ready());
+  if (!ata_is_ready())
+    t_print("$8  hint: switch storage controller to IDE$f\n");
 
   t_print("\n$bUseful commands$f\n");
   t_print("help        list commands\n");

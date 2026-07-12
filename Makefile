@@ -32,8 +32,13 @@ os.iso: kernel.bin
 	cp boot/grub.cfg isodir/boot/grub/grub.cfg
 	grub-mkrescue -o os.iso isodir
 
-run: os.iso 
-	qemu-system-x86_64 -boot d -cdrom os.iso -m 512M
-	
+disk.img:
+	dd if=/dev/zero of=disk.img bs=1M count=512
+	parted -s disk.img mklabel msdos
+	parted -s disk.img mkpart primary fat32 1MiB 511MiB
+	mkfs.fat -F32 --offset=2048 disk.img
 clean:
 	rm -rf *.o *.bin *.iso isodir
+
+run: os.iso disk.img
+	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M
