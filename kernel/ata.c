@@ -34,14 +34,21 @@ static inline uint16_t inw(uint16_t port) {
 
 static int ata_ready = 0;
 
+static int ata_ready = 0;
+static struct ata_info ata_cached;
+
 int ata_init(void) {
-    struct ata_info info;
-    ata_ready = ata_identify(&info);
+    ata_ready = ata_identify(&ata_cached);
     return ata_ready;
 }
 
 int ata_is_ready(void) {
     return ata_ready;
+}
+
+// nova função para aceder à info cached
+const struct ata_info *ata_get_info(void) {
+    return &ata_cached;
 }
 
 int ata_read_sector(uint32_t lba, uint16_t *buf) {

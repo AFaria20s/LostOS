@@ -20,15 +20,12 @@ static int bcd_to_binary(uint8_t value);
 
 void system_getinfo(struct system_info *info) {
     struct memory_stats mem_stats;
-    struct ata_info ata_info;
-
     memory_get_stats(&mem_stats);
-    ata_identify(&ata_info);
 
     k_strcat(info->os_name, OS_NAME, OS_MODEL, OS_SEP);
     k_strcp(info->architecture, ARCH_STRING);
     k_strcat(info->build, __DATE__, __TIME__, " @ ");
-    info->disk_mb=ata_info.size_mb;
+    info->disk_mb = ata_is_ready() ? ata_get_info()->size_mb : 0;
     info->ram_kib = mem_stats.total_bytes / 1024;
     info->heap_used = mem_stats.used_bytes;
     info->heap_free = mem_stats.free_bytes;

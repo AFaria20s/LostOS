@@ -28,4 +28,6 @@ int ata_read_sector(uint32_t lba, uint16_t *buf);
 int ata_init(void);
 int ata_is_ready(void);
 
+const struct ata_info *ata_get_info(void);
+
 #endif
