@@ -33,8 +33,6 @@ static inline uint16_t inw(uint16_t port) {
 }
 
 static int ata_ready = 0;
-
-static int ata_ready = 0;
 static struct ata_info ata_cached;
 
 int ata_init(void) {
