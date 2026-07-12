@@ -12,7 +12,7 @@
 #define ATA_PORT_CMD         0x1F7
 #define ATA_PORT_STATUS      0x1F7
 
-// ATA status bits
+// ATA STATUS bits
 #define ATA_STATUS_ERR  0x01  // error
 #define ATA_STATUS_DRQ  0x08  // data request ready
 #define ATA_STATUS_BSY  0x80  // busy
@@ -20,10 +20,52 @@
 // ATA commands
 #define ATA_CMD_IDENTIFY 0xEC
 
+// Declarations
+static int ata_wait_ready(void);
+static int ata_wait_bsy(void);
+static int ata_wait_drq(void);
+
+// Definitions
 static inline uint16_t inw(uint16_t port) {
     uint16_t val;
     __asm__ volatile("inw %1, %0" : "=a"(val) : "Nd"(port));
     return val;
+}
+
+static int ata_ready = 0;
+static struct ata_info ata_cached;
+
+int ata_init(void) {
+    ata_ready = ata_identify(&ata_cached);
+    return ata_ready;
+}
+
+int ata_is_ready(void) {
+    return ata_ready;
+}
+
+// nova função para aceder à info cached
+const struct ata_info *ata_get_info(void) {
+    return &ata_cached;
+}
+
+int ata_read_sector(uint32_t lba, uint16_t *buf) {
+    if (!ata_wait_bsy()) return 0;      // wait before command
+
+    outb(0x1F6, 0xE0 | ((lba >> 24) & 0x0F));
+    outb(0x1F1, 0x00);
+    outb(0x1F2, 1);
+    outb(0x1F3, (uint8_t)(lba));
+    outb(0x1F4, (uint8_t)(lba >> 8));
+    outb(0x1F5, (uint8_t)(lba >> 16));
+    outb(0x1F7, 0x20);
+
+    if (!ata_wait_drq()) return 0;      // wait after command
+
+    for (int i = 0; i < 256; i++)
+        buf[i] = inw(0x1F0);
+
+    return 1;
 }
 
 // Wait for BSY to clear, returns 0 on timeout or error
@@ -37,8 +79,35 @@ static int ata_wait_ready(void) {
     return 0;
 }
 
-// Copy and trim a string from the IDENTIFY buffer.
-// ATA strings are byte-swapped: each pair of bytes is reversed.
+// wait BSY status clear
+static int ata_wait_bsy(void) {
+    for (int i = 0; i < 100000; i++) {
+        uint8_t status = inb(ATA_PORT_STATUS);
+        if (status == 0xFF) return 0;
+        if (!(status & ATA_STATUS_BSY)) return 1;
+    }
+    return 0;
+}
+
+// wait for DRQ to set
+static int ata_wait_drq(void) {
+    // ignore first 4 reads, around 400ns delay
+    inb(ATA_PORT_STATUS);
+    inb(ATA_PORT_STATUS);
+    inb(ATA_PORT_STATUS);
+    inb(ATA_PORT_STATUS);
+
+    for (int i = 0; i < 100000; i++) {
+        uint8_t status = inb(ATA_PORT_STATUS);
+        if (status == 0xFF) return 0;
+        if (status & ATA_STATUS_ERR) return 0;
+        if (status & ATA_STATUS_DRQ) return 1;
+    }
+    return 0;
+}
+
+// Copy and trim a string from IDENTIFY buffer
+// ATA strings are byte-swapped so each pair of bytes is reversed
 static void ata_copy_string(uint16_t *buf, int word_start, int word_count, char *out) {
     int j = 0;
     for (int i = word_start; i < word_start + word_count; i++) {
@@ -85,7 +154,8 @@ int ata_identify(struct ata_info *info) {
         return 0;
     }
 
-    // check mid/high LBA - se nao zero e ATAPI, nao ATA
+    // check mid/high LBA
+    // if not zero and ATAPI, not ATA
     uint8_t lba_mid  = inb(ATA_PORT_LBA_MID);
     uint8_t lba_high = inb(ATA_PORT_LBA_HIGH);
     if (lba_mid != 0 || lba_high != 0) {

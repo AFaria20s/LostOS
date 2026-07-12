@@ -32,8 +32,14 @@ os.iso: kernel.bin
 	cp boot/grub.cfg isodir/boot/grub/grub.cfg
 	grub-mkrescue -o os.iso isodir
 
-run: os.iso 
-	qemu-system-x86_64 -boot d -cdrom os.iso -m 512M
-	
+tools/mkdisk: tools/mkdisk.c
+	gcc tools/mkdisk.c -o tools/mkdisk
+
+disk.img: tools/mkdisk
+	./tools/mkdisk
+
 clean:
-	rm -rf *.o *.bin *.iso isodir
+	rm -rf *.o *.bin *.iso isodir tools/mkdisk disk.img
+
+run: os.iso disk.img
+	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M
