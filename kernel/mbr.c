@@ -4,12 +4,15 @@
 #include "../include/ata.h"
 #include "../include/mbr.h"
 
+// MBR partition table layout
 #define MBR_PARTITION_TABLE_OFFSET  0x1BE
 #define MBR_PARTITION_ENTRY_SIZE    16
 
+// Parsed partition cache
 static struct mbr_partition partitions[MBR_PARTITION_COUNT];
 static int mbr_valid;
 
+// Reads a 32 bit little-endian value
 static uint32_t read_le32(const uint8_t *bytes) {
     return (uint32_t)bytes[0] |
            ((uint32_t)bytes[1] << 8) |
@@ -26,6 +29,7 @@ int mbr_init(void) {
     if (!ata_read_sector(0, sector))
         return 0;
 
+    // Validate the MBR signature
     if (bytes[510] != 0x55 || bytes[511] != 0xAA)
         return 0;
 

@@ -8,11 +8,14 @@ int main(void) {
     if (!f)
         return 1;
 
+    // First primary partition
+    // FAT32 LBA at LBA 1
     mbr[446] = 0x00;
     mbr[450] = 0x0C;
     mbr[454] = 0x01;
     mbr[458] = 0xFF;
     mbr[459] = 0xFF;
+    // MBR signature.
     mbr[510] = 0x55;
     mbr[511] = 0xAA;
 
