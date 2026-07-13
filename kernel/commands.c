@@ -8,6 +8,7 @@
 #include "../include/paging.h"
 #include "../include/sysinfo.h"
 #include "../include/ata.h"
+#include "../include/fat32.h"
 #include "../include/mbr.h"
 
 // Maximum arguments per command
@@ -50,7 +51,7 @@ static const struct command commands[] = {
   {"mem", "shows kernel memory usage", cmd_mem},
   {"paging", "shows paging status", cmd_paging},
   {"whatami", "what are you exactly?", cmd_whatami},
-  {"atatest", "test ATA and MBR", cmd_atatest},
+  {"atatest", "test ATA, MBR and FAT32", cmd_atatest},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
@@ -86,6 +87,67 @@ static void cmd_atatest(int argc, char **argv) {
     print_uint(partition->lba_start);
     t_print(", sectors ");
     print_uint(partition->sector_count);
+    t_putchar('\n');
+  }
+
+  if (!fat32_init()) {
+    t_print("FAT32 initialization failed\n");
+    return;
+  }
+
+  t_print("FAT32 ready\n");
+
+  for (int i = 0; ; i++) {
+    struct fat32_dirent entry;
+
+    if (!fat32_readdir("/", i, &entry))
+      break;
+
+    t_print("File ");
+    t_print(entry.name);
+    t_print(", size ");
+    print_uint(entry.size);
+    t_putchar('\n');
+  }
+
+  {
+    struct fat32_dirent entry;
+
+    if (!fat32_readdir("DOCS", 0, &entry)) {
+      t_print("FAT32 directory read failed\n");
+      return;
+    }
+
+    t_print("DOCS/");
+    t_print(entry.name);
+    t_putchar('\n');
+  }
+
+  {
+    struct fat32_file file;
+    char buffer[128];
+    uint32_t size;
+
+    if (!fat32_open("HELLO.TXT", &file)) {
+      t_print("FAT32 file open failed\n");
+      return;
+    }
+
+    size = fat32_read(&file, buffer, sizeof(buffer) - 1);
+    buffer[size] = '\0';
+    t_print("HELLO.TXT: ");
+    t_print(buffer);
+    t_putchar('\n');
+
+    if (!fat32_open("DOCS/INFO.TXT", &file)) {
+      t_print("FAT32 nested file open failed\n");
+      return;
+    }
+
+    size = fat32_read(&file, buffer, sizeof(buffer) - 1);
+    buffer[size] = '\0';
+    t_print("DOCS/INFO.TXT: ");
+    t_print(buffer);
     t_putchar('\n');
   }
 }
