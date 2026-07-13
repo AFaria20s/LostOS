@@ -35,13 +35,13 @@ os.iso: kernel.bin
 	grub-mkrescue -o os.iso isodir
 
 tools/mkdisk: tools/mkdisk.c
-	gcc tools/mkdisk.c -o tools/mkdisk
+	gcc tools/mkdisk.c -o mkdisk.o
 
 disk.img: tools/mkdisk
-	./tools/mkdisk
+	./mkdisk.o
 
 clean:
-	rm -rf *.o *.bin *.iso isodir tools/mkdisk disk.img
+	rm -rf *.o *.bin *.iso isodir mkdisk.o disk.img
 
 run: os.iso disk.img
 	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M
