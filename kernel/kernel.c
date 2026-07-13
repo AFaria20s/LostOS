@@ -65,6 +65,8 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
   if (gdt_ok && paging_ok)
     idt_ok = idt_init();
 
+  ata_init();
+
   vga_enable_cursor(14, 15);
 
   welcome_screen();
