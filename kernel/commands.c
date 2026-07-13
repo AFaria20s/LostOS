@@ -8,6 +8,7 @@
 #include "../include/paging.h"
 #include "../include/sysinfo.h"
 #include "../include/ata.h"
+#include "../include/mbr.h"
 
 // Maximum arguments per command
 #define CMD_MAX_ARGS 16
@@ -49,33 +50,44 @@ static const struct command commands[] = {
   {"mem", "shows kernel memory usage", cmd_mem},
   {"paging", "shows paging status", cmd_paging},
   {"whatami", "what are you exactly?", cmd_whatami},
-  {"atatest", "test ata driver", cmd_atatest},
+  {"atatest", "test ATA and MBR", cmd_atatest},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
 
 static void cmd_atatest(int argc, char **argv) {
-  uint16_t buf[256];
-  int ok = ata_read_sector(0, buf);
-  
-  if (!ok) {
-    t_print("ata read failed\n");
+  (void)argc;
+  (void)argv;
+
+  if (!ata_init()) {
+    t_print("ATA initialization failed\n");
     return;
   }
-  
-  // first 16 bytes in hex
-  uint8_t *bytes = (uint8_t *)buf;
-  for (int i = 0; i < 16; i++) {
-    print_hex(bytes[i]);
-    t_putchar(' ');
+
+  t_print("ATA ready\n");
+
+  if (!mbr_init()) {
+    t_print("MBR read or validation failed\n");
+    return;
   }
-  t_putchar('\n');
-  
-  // verify MBR signature
-  if (bytes[510] == 0x55 && bytes[511] == 0xAA)
-    t_print("MBR signature OK: 55 AA\n");
-  else
-    t_print("MBR signature not found\n");
+
+  t_print("MBR signature valid\n");
+
+  for (int i = 0; i < MBR_PARTITION_COUNT; i++) {
+    const struct mbr_partition *partition = mbr_get_partition(i);
+
+    t_print("Partition ");
+    print_uint(i);
+    t_print(": status ");
+    print_hex(partition->status);
+    t_print(", type ");
+    print_hex(partition->type);
+    t_print(", lba ");
+    print_uint(partition->lba_start);
+    t_print(", sectors ");
+    print_uint(partition->sector_count);
+    t_putchar('\n');
+  }
 }
 
 int cmd_autocomplete(const char *prefix, void (*putc)(char))
