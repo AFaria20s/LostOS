@@ -24,7 +24,8 @@ kernel.bin: $(KERNEL_ASM) $(KERNEL_C)
 	$(CC) $(CFLAGS) -c kernel/paging.c -o paging.o
 	$(CC) $(CFLAGS) -c kernel/sysinfo.c -o sysinfo.o
 	$(CC) $(CFLAGS) -c kernel/ata.c -o ata.o
-	ld -m elf_i386 -T linker.ld -o kernel.bin boot.o interrupt.o kernel.o vga.o gdt.o idt.o keyboard.o keyboard_layouts.o shell.o commands.o kstring.o memory.o paging.o sysinfo.o ata.o
+	$(CC) $(CFLAGS) -c kernel/mbr.c -o mbr.o
+	ld -m elf_i386 -T linker.ld -o kernel.bin boot.o interrupt.o kernel.o vga.o gdt.o idt.o keyboard.o keyboard_layouts.o shell.o commands.o kstring.o memory.o paging.o sysinfo.o ata.o mbr.o
 
 os.iso: kernel.bin
 	mkdir -p isodir/boot/grub
