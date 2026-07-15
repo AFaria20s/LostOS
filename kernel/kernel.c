@@ -9,6 +9,7 @@
 #include "../include/shell.h"
 #include "../include/vga.h"
 #include "../include/ata.h"
+#include "../include/vfs.h"
 
 static const char *old_boot_logo =
 "  ___           _    ___    _  _       ___  ____  \n"
@@ -42,6 +43,7 @@ static void welcome_screen(void) {
   print_boot_status("ATA drive detected", ata_is_ready());
   if (!ata_is_ready())
     t_print("$8  hint: switch storage controller to IDE$f\n");
+  print_boot_status("FAT32 mounted", vfs_is_ready());
 
   t_print("\n$bUseful commands$f\n");
   t_print("help        list commands\n");
@@ -66,6 +68,7 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
     idt_ok = idt_init();
 
   ata_init();
+  vfs_init();
 
   vga_enable_cursor(14, 15);
 

@@ -10,6 +10,7 @@
 #include "../include/ata.h"
 #include "../include/fat32.h"
 #include "../include/mbr.h"
+#include "../include/vfs.h"
 
 // Maximum arguments per command
 #define CMD_MAX_ARGS 16
@@ -36,6 +37,9 @@ static void cmd_paging(int argc, char **argv);
 static void cmd_whatami(int argc, char **argv);
 static void cmd_atatest(int argc, char **argv);
 
+static void cmd_ls(int argc, char **argv);
+static void cmd_cat(int argc, char **argv);
+
 static void print_hex(uintptr_t value);
 
 // Command table
@@ -52,9 +56,51 @@ static const struct command commands[] = {
   {"paging", "shows paging status", cmd_paging},
   {"whatami", "what are you exactly?", cmd_whatami},
   {"atatest", "test ATA, MBR and FAT32", cmd_atatest},
+  {"ls", "list the files in the directory", cmd_ls},
+  {"cat", "display the content of the file", cmd_cat},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
+
+static void cmd_cat(int argc, char **argv) {
+  struct vfs_file file;
+  uint8_t buf[512];
+  uint32_t bytes_read;
+
+  if (argc < 2) {
+    t_print("usage: cat <path>\n");
+    return;
+  }
+
+  if (!vfs_open(argv[1], &file)) {
+    t_print_raw(argv[1]);
+    t_print(": not found\n");
+    return;
+  }
+
+  while ((bytes_read = vfs_read(&file, buf, sizeof(buf))) > 0) {
+    for (uint32_t i = 0; i < bytes_read; i++)
+      t_putchar((char)buf[i]);
+  }
+}
+
+static void cmd_ls(int argc, char **argv) {
+    struct vfs_dirent entry;
+    const char *path = argc > 1 ? argv[1] : "/";
+    int index = 0;
+
+    while (vfs_readdir(path, index++, &entry)) {
+      if (entry.attributes & 0x10)
+        t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK));
+      else
+        t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+      
+      t_print_raw(entry.name);
+      t_putchar('\n');
+    }
+
+    t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+}
 
 static void cmd_atatest(int argc, char **argv) {
   (void)argc;
