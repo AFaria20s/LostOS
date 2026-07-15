@@ -26,7 +26,8 @@ kernel.bin: $(KERNEL_ASM) $(KERNEL_C)
 	$(CC) $(CFLAGS) -c kernel/ata.c -o ata.o
 	$(CC) $(CFLAGS) -c kernel/mbr.c -o mbr.o
 	$(CC) $(CFLAGS) -c kernel/fat32.c -o fat32.o
-	ld -m elf_i386 -T linker.ld -o kernel.bin boot.o interrupt.o kernel.o vga.o gdt.o idt.o keyboard.o keyboard_layouts.o shell.o commands.o kstring.o memory.o paging.o sysinfo.o ata.o mbr.o fat32.o
+	$(CC) $(CFLAGS) -c kernel/vfs.c -o vfs.o
+	ld -m elf_i386 -T linker.ld -o kernel.bin boot.o interrupt.o kernel.o vga.o gdt.o idt.o keyboard.o keyboard_layouts.o shell.o commands.o kstring.o memory.o paging.o sysinfo.o ata.o mbr.o fat32.o vfs.o
 
 os.iso: kernel.bin
 	mkdir -p isodir/boot/grub
@@ -35,13 +36,13 @@ os.iso: kernel.bin
 	grub-mkrescue -o os.iso isodir
 
 tools/mkdisk: tools/mkdisk.c
-	gcc tools/mkdisk.c -o mkdisk.o
+	gcc tools/mkdisk.c -o tools/mkdisk
 
 disk.img: tools/mkdisk
-	./mkdisk.o
+	./tools/mkdisk
 
 clean:
-	rm -rf *.o *.bin *.iso isodir mkdisk.o disk.img
+	rm -rf *.o *.bin *.iso isodir tools/mkdisk disk.img
 
 run: os.iso disk.img
 	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M
