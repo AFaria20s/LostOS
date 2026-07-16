@@ -19,6 +19,18 @@ uint32_t vfs_read(struct vfs_file *file, void *buf, uint32_t size) {
     return fat32_read(&file->fat32, buf, size);
 }
 
+uint32_t vfs_write(struct vfs_file *file, const void *buf, uint32_t size) {
+    return fat32_write(&file->fat32, buf, size);
+}
+
+int vfs_create(const char *path) {
+    return fat32_create(path);
+}
+
+int vfs_mkdir(const char *path) {
+    return fat32_mkdir(path);
+}
+
 int vfs_readdir(const char *path, int index, struct vfs_dirent *entry) {
     struct fat32_dirent fat_entry;
     if (!fat32_readdir(path, index, &fat_entry)) return 0;

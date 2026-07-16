@@ -24,6 +24,9 @@ int ata_identify(struct ata_info *info);
 // Reads a disk sector and store it in buffer
 // returns 1 if success
 int ata_read_sector(uint32_t lba, uint16_t *buf);
+// Writes a disk sector from buf
+// returns 1 if success
+int ata_write_sector(uint32_t lba, uint16_t *buf);
 
 int ata_init(void);
 int ata_is_ready(void);
