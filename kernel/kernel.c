@@ -19,7 +19,7 @@ static const char *old_boot_logo =
 " \\___/  /_/\\_\\ |_|    /_/     |_|     \\___/|____/  \n";
 
 static void print_boot_status(const char *label, int ok) {
-  t_print(ok ? "$a[ OK  ]$f " : "$c[ FAIL ]$f ");
+  t_print(ok ? "$a[ OK ]$f " : "$c[ FAIL ]$f ");
   t_print_raw(label);
   t_putchar('\n');
 }
