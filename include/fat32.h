@@ -47,6 +47,18 @@ int fat32_create(const char *path);
 // Returns 1 on success, 0 if it already exists or the parent doesn't
 int fat32_mkdir(const char *path);
 
+// Removes a file (not a directory) at path
+// Returns 1 on success
+int fat32_remove(const char *path);
+
+// Moves/renames a file or directory from old_path to new_path
+// Returns 1 on success (0 if the destination already exists)
+int fat32_rename(const char *old_path, const char *new_path);
+
+// Removes an empty directory at path
+// Returns 1 on success (0 if it isn't empty or doesn't exist)
+int fat32_rmdir(const char *path);
+
 // Reads an entry from a directory
 // Returns 1 when the entry exists
 int fat32_readdir(const char *path, int index, struct fat32_dirent *entry);

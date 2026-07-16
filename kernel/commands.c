@@ -38,7 +38,13 @@ static void cmd_whatami(int argc, char **argv);
 static void cmd_atatest(int argc, char **argv);
 
 static void cmd_ls(int argc, char **argv);
-static void cmd_cat(int argc, char **argv);
+static void cmd_read(int argc, char **argv);
+static void cmd_touch(int argc, char **argv);
+static void cmd_mkdir(int argc, char **argv);
+static void cmd_rm(int argc, char **argv);
+static void cmd_cp(int argc, char **argv);
+static void cmd_mv(int argc, char **argv);
+static void cmd_rmdir(int argc, char **argv);
 
 static void print_hex(uintptr_t value);
 
@@ -57,18 +63,24 @@ static const struct command commands[] = {
   {"whatami", "what are you exactly?", cmd_whatami},
   {"atatest", "test ATA, MBR and FAT32", cmd_atatest},
   {"ls", "list the files in the directory", cmd_ls},
-  {"cat", "display the content of the file", cmd_cat},
+  {"read", "display the content of the file", cmd_read},
+  {"touch", "create an empty file", cmd_touch},
+  {"mkdir", "create a directory", cmd_mkdir},
+  {"rm", "remove a file", cmd_rm},
+  {"cp", "copy a file", cmd_cp},
+  {"mv", "move or rename a file", cmd_mv},
+  {"rmdir", "remove an empty directory", cmd_rmdir},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
 
-static void cmd_cat(int argc, char **argv) {
+static void cmd_read(int argc, char **argv) {
   struct vfs_file file;
   uint8_t buf[512];
   uint32_t bytes_read;
 
   if (argc < 2) {
-    t_print("usage: cat <path>\n");
+    t_print("usage: read <path>\n");
     return;
   }
 
@@ -81,6 +93,106 @@ static void cmd_cat(int argc, char **argv) {
   while ((bytes_read = vfs_read(&file, buf, sizeof(buf))) > 0) {
     for (uint32_t i = 0; i < bytes_read; i++)
       t_putchar((char)buf[i]);
+  }
+}
+
+static void cmd_touch(int argc, char **argv) {
+  if (argc < 2) {
+    t_print("usage: touch <path>\n");
+    return;
+  }
+
+  if (!vfs_create(argv[1])) {
+    t_print_raw(argv[1]);
+    t_print(": could not create\n");
+  }
+}
+
+static void cmd_mkdir(int argc, char **argv) {
+  if (argc < 2) {
+    t_print("usage: mkdir <path>\n");
+    return;
+  }
+
+  if (!vfs_mkdir(argv[1])) {
+    t_print_raw(argv[1]);
+    t_print(": could not create\n");
+  }
+}
+
+static void cmd_rm(int argc, char **argv) {
+  if (argc < 2) {
+    t_print("usage: rm <path>\n");
+    return;
+  }
+
+  if (!vfs_remove(argv[1])) {
+    t_print_raw(argv[1]);
+    t_print(": could not remove\n");
+  }
+}
+
+static void cmd_rmdir(int argc, char **argv) {
+  if (argc < 2) {
+    t_print("usage: rmdir <path>\n");
+    return;
+  }
+
+  if (!vfs_rmdir(argv[1])) {
+    t_print_raw(argv[1]);
+    t_print(": could not remove\n");
+  }
+}
+
+static void cmd_mv(int argc, char **argv) {
+  if (argc < 3) {
+    t_print("usage: mv <src> <dst>\n");
+    return;
+  }
+
+  if (!vfs_rename(argv[1], argv[2])) {
+    t_print_raw(argv[1]);
+    t_print(": could not move\n");
+  }
+}
+
+static void cmd_cp(int argc, char **argv) {
+  struct vfs_file src;
+  uint8_t buf[512];
+  uint32_t bytes_read;
+
+  if (argc < 3) {
+    t_print("usage: cp <src> <dst>\n");
+    return;
+  }
+
+  if (!vfs_open(argv[1], &src)) {
+    t_print_raw(argv[1]);
+    t_print(": not found\n");
+    return;
+  }
+
+  if (!vfs_create(argv[2])) {
+    t_print_raw(argv[2]);
+    t_print(": could not create\n");
+    return;
+  }
+
+  {
+    struct vfs_file dst;
+
+    if (!vfs_open(argv[2], &dst)) {
+      t_print_raw(argv[2]);
+      t_print(": could not open\n");
+      return;
+    }
+
+    while ((bytes_read = vfs_read(&src, buf, sizeof(buf))) > 0) {
+      if (vfs_write(&dst, buf, bytes_read) != bytes_read) {
+        t_print("cp: write failed\n");
+        return;
+      }
+    }
   }
 }
 
