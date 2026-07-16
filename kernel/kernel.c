@@ -12,11 +12,14 @@
 #include "fs/vfs.h"
 
 static const char *old_boot_logo =
-"  ___           _    ___    _  _       ___  ____  \n"
-" / _ \\  __  __ / |  / _ \\  | || |     / _ \\/ ___| \n"
-"| | | | \\ \\/ / | | | (_) | | || |_   | | | \\___ \\  \n"
-"| |_| |  >  <  | |  \\__, | |__   _|  | |_| |___) | \n"
-" \\___/  /_/\\_\\ |_|    /_/     |_|     \\___/|____/  \n";
+" /$$        /$$$$$$   /$$$$$$  /$$$$$$$$        /$$$$$$   /$$$$$$ \n"
+"| $$       /$$__  $$ /$$__  $$|__  $$__/       /$$__  $$ /$$__  $$ \n"
+"| $$      | $$  \\ $$| $$  \\__/   | $$         | $$  \\ $$| $$  \\__/\n"
+"| $$      | $$  | $$|  $$$$$$    | $$         | $$  | $$|  $$$$$$ \n"
+"| $$      | $$  | $$ \\____  $$   | $$         | $$  | $$ \\____  $$\n"
+"| $$      | $$  | $$ /$$  \\ $$   | $$         | $$  | $$ /$$  \\ $$\n"
+"| $$$$$$$$|  $$$$$$/|  $$$$$$/   | $$         |  $$$$$$/|  $$$$$$/\n"
+"|________/ \\______/  \\______/    |__/          \\______/  \\______/ \n";
 
 static void print_boot_status(const char *label, int ok) {
   t_print(ok ? "$a[ OK ]$f " : "$c[ FAIL ]$f ");
@@ -30,7 +33,7 @@ static void welcome_screen(void) {
   t_print_raw(old_boot_logo);
 
   t_print("\n");
-  t_print("$f0x194 OS $8/ $b32-bit bare metal shell$f\n");
+  t_print("$fLostOS OS $8/ $b32-bit bare metal shell$f\n");
   t_print("$8Build: multiboot, VGA text, PS/2 keyboard, kernel heap$f\n\n");
 
   t_print("$bBoot status$f\n");

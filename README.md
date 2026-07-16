@@ -1,8 +1,6 @@
-# 0x194OS
+# Lost OS
 
-0x194 = 404. do the math.
-
-0x194OS is a bare-metal x86 operating system written in C.
+Lost OS is a bare-metal x86 operating system written in C.
 It boots in QEMU and on real hardware, gives you a shell to play with and is where the usual low-level pieces get built one by one.
 
 Every command, every color on the screen, every bit of input handling, and every file read from disk is running on code from this repo.
@@ -63,8 +61,8 @@ sudo apt install gcc qemu-system-x86 grub-pc-bin xorriso make
 ## Running
 
 ```bash
-git clone https://github.com/AFaria20s/0x194OS
-cd 0x194OS
+git clone https://github.com/AFaria20s/LostOS
+cd LostOS
 make run
 ```
 
