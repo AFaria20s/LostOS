@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define OS_NAME  "0x194"
+#define OS_NAME  "LostOS"
 #define OS_MODEL "1.0_SLOTH"
 #define OS_SEP   " - "
 

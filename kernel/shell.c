@@ -5,6 +5,7 @@
 #include "../include/memory.h"
 #include "../include/shell.h"
 #include "../include/vga.h"
+#include "../include/sysinfo.h"
 
 #define BUFFER_SIZE 256
 #define HISTORY_LIMIT 64
@@ -372,8 +373,12 @@ static void shell_move_right(void) {
 }
 
 void shell_prompt(void) {
+  
   t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
-  t_print("$c404$f@$30x194$f:~$ ");
+  t_print("$c404$f@");
+  t_setcolor(vga_entry_color(3, VGA_COLOR_BLACK));
+  t_print(OS_NAME);
+  t_print("$f:~$ ");
 
   prompt_col = t_column;
   prompt_row = t_row;
