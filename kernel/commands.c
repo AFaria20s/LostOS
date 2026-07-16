@@ -39,6 +39,8 @@ static void cmd_atatest(int argc, char **argv);
 
 static void cmd_ls(int argc, char **argv);
 static void cmd_cat(int argc, char **argv);
+static void cmd_touch(int argc, char **argv);
+static void cmd_mkdir(int argc, char **argv);
 
 static void print_hex(uintptr_t value);
 
@@ -58,9 +60,35 @@ static const struct command commands[] = {
   {"atatest", "test ATA, MBR and FAT32", cmd_atatest},
   {"ls", "list the files in the directory", cmd_ls},
   {"cat", "display the content of the file", cmd_cat},
+  {"touch", "creates a file", cmd_touch},
+  {"mkdir", "creates a directory", cmd_mkdir},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
+
+static void cmd_touch(int argc, char **argv) {
+  if (argc < 2) {
+    t_print("usage: touch <path>\n");
+    return;
+  }
+
+  if (!vfs_create(argv[1])) {
+    t_print_raw(argv[1]);
+    t_print(": could not create\n");
+  }
+}
+
+static void cmd_mkdir(int argc, char **argv) {
+  if (argc < 2) {
+    t_print("usage: mkdir <path>\n");
+    return;
+  }
+
+  if (!vfs_mkdir(argv[1])) {
+    t_print_raw(argv[1]);
+    t_print(": could not create\n");
+  }
+}
 
 static void cmd_cat(int argc, char **argv) {
   struct vfs_file file;
