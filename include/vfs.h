@@ -18,6 +18,12 @@ int vfs_open(const char *path, struct vfs_file *file);
 
 uint32_t vfs_read(struct vfs_file *file, void *buf, uint32_t size);
 
+uint32_t vfs_write(struct vfs_file *file, const void *buf, uint32_t size);
+
+int vfs_create(const char *path);
+
+int vfs_mkdir(const char *path);
+
 int vfs_readdir(const char *path, int index, struct vfs_dirent *entry);
 
 int vfs_is_ready(void);

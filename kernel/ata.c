@@ -49,6 +49,25 @@ const struct ata_info *ata_get_info(void) {
     return &ata_cached;
 }
 
+int ata_write_sector(uint32_t lba, uint16_t *buf) {
+    if (!ata_wait_bsy()) return 0;      // wait before command
+
+    outb(0x1F6, 0xE0 | ((lba >> 24) & 0x0F));
+    outb(0x1F1, 0x00);
+    outb(0x1F2, 1);
+    outb(0x1F3, (uint8_t)(lba));
+    outb(0x1F4, (uint8_t)(lba >> 8));
+    outb(0x1F5, (uint8_t)(lba >> 16));
+    outb(0x1F7, 0x30);                  // 0x30, command WRITE SECTORS
+
+    if (!ata_wait_drq()) return 0;      // wait after command
+
+    for (int i = 0; i < 256; i++)
+        outw(0x1F0, buf[i]);            // outw to write
+
+    return 1;
+}
+
 int ata_read_sector(uint32_t lba, uint16_t *buf) {
     if (!ata_wait_bsy()) return 0;      // wait before command
 
@@ -58,12 +77,12 @@ int ata_read_sector(uint32_t lba, uint16_t *buf) {
     outb(0x1F3, (uint8_t)(lba));
     outb(0x1F4, (uint8_t)(lba >> 8));
     outb(0x1F5, (uint8_t)(lba >> 16));
-    outb(0x1F7, 0x20);
+    outb(0x1F7, 0x20);                  // 0x20, command READ SECTORS
 
     if (!ata_wait_drq()) return 0;      // wait after command
 
     for (int i = 0; i < 256; i++)
-        buf[i] = inw(0x1F0);
+        buf[i] = inw(0x1F0);            // inw to read
 
     return 1;
 }
