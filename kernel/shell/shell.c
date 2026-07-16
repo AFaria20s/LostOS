@@ -5,7 +5,7 @@
 #include "mm/memory.h"
 #include "shell/shell.h"
 #include "drivers/vga.h"
-#include "sysinfo.h"
+#include "shell/sysinfo.h"
 
 #define BUFFER_SIZE 256
 #define HISTORY_LIMIT 64
