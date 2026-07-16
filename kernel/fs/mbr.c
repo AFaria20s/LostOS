@@ -1,8 +1,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../include/ata.h"
-#include "../include/mbr.h"
+#include "drivers/ata.h"
+#include "fs/mbr.h"
 
 // MBR partition table layout
 #define MBR_PARTITION_TABLE_OFFSET  0x1BE

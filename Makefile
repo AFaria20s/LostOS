@@ -1,33 +1,41 @@
 CC = gcc
 AS = as
+CPPFLAGS = -Iinclude
 CFLAGS = -m32 -nostdlib -ffreestanding -fno-stack-protector -fno-pic -Wall
 
-KERNEL_C = kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/idt.c kernel/keyboard.c kernel/keyboard_layouts.c kernel/shell.c kernel/commands.c kernel/kstring.c kernel/memory.c kernel/paging.c
-KERNEL_ASM = boot/boot.s
+KERNEL_C = \
+	kernel/kernel.c \
+	kernel/arch/gdt.c \
+	kernel/arch/idt.c \
+	kernel/drivers/ata.c \
+	kernel/drivers/keyboard.c \
+	kernel/drivers/keyboard_layouts.c \
+	kernel/drivers/rtc.c \
+	kernel/drivers/vga.c \
+	kernel/fs/fat32.c \
+	kernel/fs/mbr.c \
+	kernel/fs/vfs.c \
+	kernel/lib/kstring.c \
+	kernel/mm/memory.c \
+	kernel/mm/paging.c \
+	kernel/shell/commands.c \
+	kernel/shell/shell.c \
+	kernel/shell/sysinfo.c
+KERNEL_ASM = boot/boot.s boot/interrupt.s
 LINKER = linker.ld
+OBJDIR = obj
+KERNEL_OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(KERNEL_C))
 
 all: os.iso
 
-kernel.bin: $(KERNEL_ASM) $(KERNEL_C)
+$(OBJDIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+kernel.bin: $(KERNEL_ASM) $(KERNEL_OBJS)
 	$(AS) --32 boot/boot.s -o boot.o
 	$(AS) --32 boot/interrupt.s -o interrupt.o
-	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
-	$(CC) $(CFLAGS) -c kernel/vga.c -o vga.o
-	$(CC) $(CFLAGS) -c kernel/idt.c -o idt.o
-	$(CC) $(CFLAGS) -c kernel/keyboard.c -o keyboard.o
-	$(CC) $(CFLAGS) -c kernel/keyboard_layouts.c -o keyboard_layouts.o
-	$(CC) $(CFLAGS) -c kernel/gdt.c -o gdt.o
-	$(CC) $(CFLAGS) -c kernel/shell.c -o shell.o
-	$(CC) $(CFLAGS) -c kernel/commands.c -o commands.o
-	$(CC) $(CFLAGS) -c kernel/kstring.c -o kstring.o
-	$(CC) $(CFLAGS) -c kernel/memory.c -o memory.o
-	$(CC) $(CFLAGS) -c kernel/paging.c -o paging.o
-	$(CC) $(CFLAGS) -c kernel/sysinfo.c -o sysinfo.o
-	$(CC) $(CFLAGS) -c kernel/ata.c -o ata.o
-	$(CC) $(CFLAGS) -c kernel/mbr.c -o mbr.o
-	$(CC) $(CFLAGS) -c kernel/fat32.c -o fat32.o
-	$(CC) $(CFLAGS) -c kernel/vfs.c -o vfs.o
-	ld -m elf_i386 -T linker.ld -o kernel.bin boot.o interrupt.o kernel.o vga.o gdt.o idt.o keyboard.o keyboard_layouts.o shell.o commands.o kstring.o memory.o paging.o sysinfo.o ata.o mbr.o fat32.o vfs.o
+	ld -m elf_i386 -T linker.ld -o kernel.bin boot.o interrupt.o $(KERNEL_OBJS)
 
 os.iso: kernel.bin
 	mkdir -p isodir/boot/grub
@@ -42,7 +50,7 @@ disk.img: tools/mkdisk
 	./tools/mkdisk
 
 clean:
-	rm -rf *.o *.bin *.iso isodir tools/mkdisk disk.img
+	rm -rf *.o *.bin *.iso isodir tools/mkdisk disk.img $(OBJDIR)
 
 run: os.iso disk.img
 	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M

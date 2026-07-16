@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../include/paging.h"
+#include "mm/paging.h"
 
 #define PAGE_PRESENT 0x001
 #define PAGE_WRITABLE 0x002

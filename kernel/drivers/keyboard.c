@@ -1,9 +1,9 @@
 #include <stdint.h>
 
-#include "../include/io.h"
-#include "../include/keyboard.h"
-#include "../include/shell.h"
-#include "../include/keyboard_layouts.h"
+#include "arch/io.h"
+#include "drivers/keyboard.h"
+#include "shell/shell.h"
+#include "drivers/keyboard_layouts.h"
 
 #define KEYBOARD_PORT 0x60
 #define PIC_EOI       0x20

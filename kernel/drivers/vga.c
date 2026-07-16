@@ -1,9 +1,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../include/kstring.h"
-#include "../include/io.h"
-#include "../include/vga.h"
+#include "lib/kstring.h"
+#include "arch/io.h"
+#include "drivers/vga.h"
 
 #define VGA_MEMORY 0xB8000
 #define VGA_SCROLLBACK_HEIGHT 256

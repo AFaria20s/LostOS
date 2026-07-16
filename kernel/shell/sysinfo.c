@@ -1,8 +1,8 @@
-#include "../include/sysinfo.h"
-#include "../include/kstring.h"
-#include "../include/memory.h"
-#include "../include/io.h"
-#include "../include/ata.h"
+#include "shell/sysinfo.h"
+#include "lib/kstring.h"
+#include "mm/memory.h"
+#include "arch/io.h"
+#include "drivers/ata.h"
 
 #define CMOS_ADDRESS 0x70
 #define CMOS_DATA    0x71

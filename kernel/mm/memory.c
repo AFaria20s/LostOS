@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../include/memory.h"
+#include "mm/memory.h"
 
 #define HEAP_ALIGN 16
 #define HEAP_MIN_SPLIT 32

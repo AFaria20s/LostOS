@@ -1,11 +1,11 @@
-#include "../include/commands.h"
-#include "../include/io.h"
-#include "../include/keyboard.h"
-#include "../include/kstring.h"
-#include "../include/memory.h"
-#include "../include/shell.h"
-#include "../include/vga.h"
-#include "../include/sysinfo.h"
+#include "shell/commands.h"
+#include "arch/io.h"
+#include "drivers/keyboard.h"
+#include "lib/kstring.h"
+#include "mm/memory.h"
+#include "shell/shell.h"
+#include "drivers/vga.h"
+#include "shell/sysinfo.h"
 
 #define BUFFER_SIZE 256
 #define HISTORY_LIMIT 64
