@@ -1,8 +1,8 @@
 #include <stdint.h>
 
-#include "../include/vfs.h"
-#include "../include/fat32.h"
-#include "../include/kstring.h"
+#include "fs/vfs.h"
+#include "fs/fat32.h"
+#include "lib/kstring.h"
 
 static int vfs_ready = 0;
 

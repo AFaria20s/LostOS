@@ -1,15 +1,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../include/gdt.h"
-#include "../include/idt.h"
-#include "../include/keyboard.h"
-#include "../include/memory.h"
-#include "../include/paging.h"
-#include "../include/shell.h"
-#include "../include/vga.h"
-#include "../include/ata.h"
-#include "../include/vfs.h"
+#include "arch/gdt.h"
+#include "arch/idt.h"
+#include "drivers/keyboard.h"
+#include "mm/memory.h"
+#include "mm/paging.h"
+#include "shell/shell.h"
+#include "drivers/vga.h"
+#include "drivers/ata.h"
+#include "fs/vfs.h"
 
 static const char *old_boot_logo =
 "  ___           _    ___    _  _       ___  ____  \n"

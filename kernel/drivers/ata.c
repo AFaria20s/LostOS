@@ -1,5 +1,5 @@
-#include "../include/ata.h"
-#include "../include/io.h"
+#include "drivers/ata.h"
+#include "arch/io.h"
 
 // ATA primary bus ports
 #define ATA_PORT_DATA        0x1F0

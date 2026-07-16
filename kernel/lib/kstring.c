@@ -1,4 +1,4 @@
-#include "../include/kstring.h"
+#include "lib/kstring.h"
 
 size_t k_strlen(const char *str) {
   // Return length of a null-terminated string

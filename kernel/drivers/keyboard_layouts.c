@@ -1,5 +1,5 @@
-#include "../include/keyboard_layouts.h"
-#include "../include/kstring.h"
+#include "drivers/keyboard_layouts.h"
+#include "lib/kstring.h"
 
 /*
  * PS/2 set 1 scancodes. Add a layout by creating three KEYMAPs and adding

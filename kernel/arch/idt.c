@@ -1,9 +1,9 @@
 #include <stdint.h>
 
-#include "../include/idt.h"
-#include "../include/io.h"
-#include "../include/keyboard.h"
-#include "../include/vga.h"
+#include "arch/idt.h"
+#include "arch/io.h"
+#include "drivers/keyboard.h"
+#include "drivers/vga.h"
 
 #define PIC1_COMMAND 0x20
 #define PIC1_DATA 0x21

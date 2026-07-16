@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "../include/gdt.h"
+#include "arch/gdt.h"
 
 // GDT entry (Global Descriptor Table)
 struct gdt_entry {

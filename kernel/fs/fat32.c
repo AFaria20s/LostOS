@@ -1,9 +1,9 @@
 #include <stdint.h>
 
-#include "../include/ata.h"
-#include "../include/fat32.h"
-#include "../include/kstring.h"
-#include "../include/mbr.h"
+#include "drivers/ata.h"
+#include "fs/fat32.h"
+#include "lib/kstring.h"
+#include "fs/mbr.h"
 
 #define FAT32_SECTOR_SIZE 512
 #define FAT32_DIRECTORY_ENTRY_SIZE 32

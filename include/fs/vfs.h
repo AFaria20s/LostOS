@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "../include/fat32.h"
+#include "fs/fat32.h"
 
 struct vfs_file {
     int fs_type;
