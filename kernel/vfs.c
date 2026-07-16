@@ -31,6 +31,18 @@ int vfs_mkdir(const char *path) {
     return fat32_mkdir(path);
 }
 
+int vfs_remove(const char *path) {
+    return fat32_remove(path);
+}
+
+int vfs_rename(const char *old_path, const char *new_path) {
+    return fat32_rename(old_path, new_path);
+}
+
+int vfs_rmdir(const char *path) {
+    return fat32_rmdir(path);
+}
+
 int vfs_readdir(const char *path, int index, struct vfs_dirent *entry) {
     struct fat32_dirent fat_entry;
     if (!fat32_readdir(path, index, &fat_entry)) return 0;

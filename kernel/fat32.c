@@ -354,6 +354,17 @@ static void fat32_update_entry(uint32_t lba, uint32_t offset, uint32_t first_clu
     fat32_write_sector(lba, sector);
 }
 
+// Marks a directory entry as deleted, 0xE5 marker
+static void fat32_delete_entry(uint32_t lba, uint32_t offset) {
+    uint8_t sector[FAT32_SECTOR_SIZE];
+
+    if (!fat32_read_sector(lba, sector))
+        return;
+
+    sector[offset] = 0xE5;
+    fat32_write_sector(lba, sector);
+}
+
 // Gets the cluster for a directory path
 static int fat32_directory_cluster(const char *path, uint32_t *cluster) {
     struct fat32_file directory;
@@ -557,6 +568,104 @@ int fat32_mkdir(const char *path) {
         return 0;
 
     return fat32_write_entry(lba, offset, name, name_length, FAT32_ATTRIBUTE_DIRECTORY, new_cluster, 0);
+}
+
+int fat32_remove(const char *path) {
+    struct fat32_file file;
+    uint32_t cluster;
+
+    if (!fat32_ready || !fat32_open(path, &file) || file.entry_lba == 0)
+        return 0;
+
+    if (file.attributes & FAT32_ATTRIBUTE_DIRECTORY)
+        return 0;
+
+    cluster = file.first_cluster;
+    while (cluster >= 2 && !fat32_is_end_cluster(cluster)) {
+        uint32_t next = fat32_next_cluster(cluster);
+        fat32_set_next_cluster(cluster, 0);
+        cluster = next;
+    }
+
+    fat32_delete_entry(file.entry_lba, file.entry_offset);
+    return 1;
+}
+
+int fat32_rename(const char *old_path, const char *new_path) {
+    struct fat32_file source;
+    struct fat32_dirent existing;
+    char parent_buffer[128];
+    const char *name;
+    int name_length;
+    uint32_t parent_cluster, lba, offset;
+
+    if (!fat32_ready || !fat32_open(old_path, &source) || source.entry_lba == 0)
+        return 0;
+
+    if (!fat32_split_path(new_path, parent_buffer, &name, &name_length, &parent_cluster))
+        return 0;
+
+    if (fat32_find_entry(parent_cluster, name, name_length, &existing, 0, 0))
+        return 0;
+
+    if (!fat32_alloc_entry_slot(parent_cluster, &lba, &offset))
+        return 0;
+
+    if (!fat32_write_entry(lba, offset, name, name_length, source.attributes, source.first_cluster, source.size))
+        return 0;
+
+    fat32_delete_entry(source.entry_lba, source.entry_offset);
+    return 1;
+}
+
+// Checks whether a directory cluster chain has no entries besides "." and ".."
+static int fat32_directory_empty(uint32_t cluster) {
+    uint8_t sector[FAT32_SECTOR_SIZE];
+
+    while (cluster >= 2 && !fat32_is_end_cluster(cluster)) {
+        uint32_t lba = fat32_cluster_lba(cluster);
+
+        for (int i = 0; i < volume.sectors_per_cluster; i++) {
+            if (!fat32_read_sector(lba + i, sector))
+                return 0;
+
+            for (int j = 0; j < FAT32_SECTOR_SIZE; j += FAT32_DIRECTORY_ENTRY_SIZE) {
+                if (sector[j] == 0)
+                    return 1;
+
+                if (fat32_entry_visible(sector + j))
+                    return 0;
+            }
+        }
+
+        cluster = fat32_next_cluster(cluster);
+    }
+
+    return 1;
+}
+
+int fat32_rmdir(const char *path) {
+    struct fat32_file dir;
+    uint32_t cluster;
+
+    if (!fat32_ready || !fat32_open(path, &dir) || dir.entry_lba == 0)
+        return 0;
+
+    if (!(dir.attributes & FAT32_ATTRIBUTE_DIRECTORY))
+        return 0;
+
+    if (!fat32_directory_empty(dir.first_cluster))
+        return 0;
+
+    cluster = dir.first_cluster;
+    while (cluster >= 2 && !fat32_is_end_cluster(cluster)) {
+        uint32_t next = fat32_next_cluster(cluster);
+        fat32_set_next_cluster(cluster, 0);
+        cluster = next;
+    }
+
+    fat32_delete_entry(dir.entry_lba, dir.entry_offset);
+    return 1;
 }
 
 uint32_t fat32_write(struct fat32_file *file, const void *buffer, uint32_t size) {
