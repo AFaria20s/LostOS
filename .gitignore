@@ -4,6 +4,8 @@
 *.elf
 *.iso
 *.img
+obj/
+tools/mkdisk
 
 # debug files
 *.asm
