@@ -49,12 +49,30 @@ void editor_render(void) {
     uint16_t *vga = (uint16_t *)0xB8000;
     uint8_t color = vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 
+    int visible_lines = VGA_HEIGHT - 1;
+
+    // vertical scroll
+    if (state.cursor_y < state.scroll_offset)
+        state.scroll_offset = state.cursor_y;
+    else if (state.cursor_y >= state.scroll_offset + visible_lines)
+        state.scroll_offset = state.cursor_y - visible_lines + 1;
+
+    // horizontal scroll
+    struct editor_line *cur_line = &state.lines[state.cursor_y];
+    if (cur_line->length <= VGA_WIDTH) {
+        // whole line fits on screen, no scroll needed
+        cur_line->h_scroll = 0;
+    } else if (state.cursor_x < cur_line->h_scroll) {
+        cur_line->h_scroll = state.cursor_x;
+    } else if (state.cursor_x >= cur_line->h_scroll + VGA_WIDTH) {
+        cur_line->h_scroll = state.cursor_x - VGA_WIDTH + 1;
+    }
+
     // clean screen
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
         vga[i] = vga_entry(' ', color);
 
     // draw visible lines
-    int visible_lines = VGA_HEIGHT - 1;
     for (int i = 0; i < visible_lines; i++) {
         int line_index = state.scroll_offset + i;
         if (line_index >= state.line_count)
@@ -68,6 +86,12 @@ void editor_render(void) {
 
         for (int x = start; x < end; x++)
             vga[i * VGA_WIDTH + (x - start)] = vga_entry(line->text[x], color);
+
+        // indicators showing there is hidden text to the left/right of the screen
+        if (line->h_scroll > 0)
+            vga[i * VGA_WIDTH] = vga_entry('$', color);
+        if (line->h_scroll + VGA_WIDTH < line->length)
+            vga[i * VGA_WIDTH + (VGA_WIDTH - 1)] = vga_entry('$', color);
     }
 
     // status bar
@@ -246,11 +270,24 @@ void editor_input(int key) {
             editor_render();
             return;
         case KEY_UP:
-            if (state.cursor_y > 0) state.cursor_y--;
+            if (state.cursor_y > 0) {
+                state.cursor_y--;
+
+                if (state.cursor_x > state.lines[state.cursor_y].length) {
+                    state.cursor_x = state.lines[state.cursor_y].length;
+                }
+            }
             editor_render();
             return;
+
         case KEY_DOWN:
-            if (state.cursor_y < state.line_count - 1) state.cursor_y++;
+            if (state.cursor_y < state.line_count - 1) {
+                state.cursor_y++;
+
+                if (state.cursor_x > state.lines[state.cursor_y].length) {
+                    state.cursor_x = state.lines[state.cursor_y].length;
+                }
+            }
             editor_render();
             return;
     }
