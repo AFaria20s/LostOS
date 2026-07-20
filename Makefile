@@ -20,7 +20,8 @@ KERNEL_C = \
 	kernel/mm/paging.c \
 	kernel/shell/commands.c \
 	kernel/shell/shell.c \
-	kernel/shell/sysinfo.c
+	kernel/shell/sysinfo.c \
+	kernel/editor/editor.c
 KERNEL_ASM = boot/boot.s boot/interrupt.s
 LINKER = linker.ld
 OBJDIR = obj

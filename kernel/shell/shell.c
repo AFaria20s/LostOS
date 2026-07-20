@@ -403,7 +403,8 @@ void shell_process(void) {
   buffer_len = 0;
   cursor_pos = 0;
 
-  shell_prompt();
+  if (!editor_is_active())
+    shell_prompt();
 }
 
 static void shell_putc(char c) {
