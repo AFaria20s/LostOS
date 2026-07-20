@@ -276,3 +276,7 @@ void t_print(const char *data) {
 
   t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));  // reset color
 }
+
+void t_force_redraw(void) {
+    t_render_view();
+}

@@ -30,4 +30,11 @@ struct editor_state {
     int modified;
 };
 
+void editor_open(const char *path);
+void editor_close(void);
+void editor_render(void);
+void editor_input(int key);
+
+int editor_is_active(void);
+
 #endif

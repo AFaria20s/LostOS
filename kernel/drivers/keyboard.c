@@ -4,6 +4,7 @@
 #include "drivers/keyboard.h"
 #include "shell/shell.h"
 #include "drivers/keyboard_layouts.h"
+#include "editor/editor.h"
 
 #define KEYBOARD_PORT 0x60
 #define PIC_EOI       0x20
@@ -74,15 +75,23 @@ static void handle_extended_key(uint8_t scancode) {
 
   if (!is_release) {
     switch (scancode) {
-      case EXT_LEFT:    shell_input(KEY_LEFT);    break;
-      case EXT_RIGHT:   shell_input(KEY_RIGHT);   break;
+      case EXT_LEFT:
+        if (editor_is_active()) editor_input(KEY_LEFT); else shell_input(KEY_LEFT);
+        break;
+      case EXT_RIGHT:
+        if (editor_is_active()) editor_input(KEY_RIGHT); else shell_input(KEY_RIGHT);
+        break;
       case EXT_UP:
-        shell_input(shift_pressed ? KEY_SCROLL_UP : KEY_UP);
+        if (editor_is_active()) editor_input(KEY_UP);
+        else shell_input(shift_pressed ? KEY_SCROLL_UP : KEY_UP);
         break;
       case EXT_DOWN:
-        shell_input(shift_pressed ? KEY_SCROLL_DOWN : KEY_DOWN);
+        if (editor_is_active()) editor_input(KEY_DOWN);
+        else shell_input(shift_pressed ? KEY_SCROLL_DOWN : KEY_DOWN);
         break;
-      case EXT_DELETE:  shell_input(KEY_DELETE);  break;
+      case EXT_DELETE:
+        if (editor_is_active()) editor_input(KEY_DELETE); else shell_input(KEY_DELETE);
+        break;
       case EXT_PGUP:    shell_input(KEY_PGUP);    break;
       case EXT_PGDOWN:  shell_input(KEY_PGDOWN);  break;
       case EXT_RALT:    altgr_pressed = 1;        break;
@@ -125,7 +134,17 @@ void keyboard_handler(void) {
   }
 
   if(key == SCANCODE_TAB && !is_release) {
-    shell_input(KEY_TAB);
+    if (editor_is_active())
+      editor_input(KEY_TAB);
+    else
+      shell_input(KEY_TAB);
+    send_eoi();
+    return;
+  }
+
+  if (key == SCANCODE_ESCAPE && !is_release) {
+    if (editor_is_active())
+      editor_input(27);
     send_eoi();
     return;
   }
@@ -138,7 +157,10 @@ void keyboard_handler(void) {
   char c = translate_scancode(key);
 
   if (c)
-    shell_input(c);
+    if (editor_is_active())
+      editor_input(c);
+    else
+      shell_input(c);
 
   send_eoi();
 }

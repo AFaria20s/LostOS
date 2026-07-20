@@ -11,6 +11,7 @@
 #include "fs/fat32.h"
 #include "fs/mbr.h"
 #include "fs/vfs.h"
+#include "editor/editor.h"
 
 // Maximum arguments per command
 #define CMD_MAX_ARGS 16
@@ -45,6 +46,7 @@ static void cmd_rm(int argc, char **argv);
 static void cmd_cp(int argc, char **argv);
 static void cmd_mv(int argc, char **argv);
 static void cmd_rmdir(int argc, char **argv);
+static void cmd_lost(int argc, char **argv);
 
 static void print_hex(uintptr_t value);
 
@@ -70,9 +72,19 @@ static const struct command commands[] = {
   {"cp", "copy a file", cmd_cp},
   {"mv", "move or rename a file", cmd_mv},
   {"rmdir", "remove an empty directory", cmd_rmdir},
+  {"lost", "open Lost text editor", cmd_lost},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
+
+static void cmd_lost(int argc, char **argv) {
+  if (argc < 2) {
+    t_print("usage: lost <path>\n");
+    return;
+  }
+
+  editor_open(argv[1]);
+}
 
 static void cmd_read(int argc, char **argv) {
   struct vfs_file file;
