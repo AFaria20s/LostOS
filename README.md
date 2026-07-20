@@ -1,9 +1,9 @@
 # Lost OS
 
 Lost OS is a bare-metal x86 operating system written in C.
-It boots in QEMU and on real hardware, gives you a shell to play with and is where the usual low-level pieces get built one by one.
+It boots in QEMU and on real hardware, gives you an interactive shell, and builds a complete low-level stack from disk access to a text editor.
 
-Every command, every color on the screen, every bit of input handling, and every file read from disk is running on code from this repo.
+Every command, every color on screen, every keyboard event and every file read from disk is handled by code in this repository.
 
 ## Screenshots
 
@@ -15,24 +15,55 @@ Some shell commands in action:
 
 ![Shell commands](docs/screenshots/shell.png)
 
+## Highlights
+
+- Fully custom 32-bit protected-mode kernel
+- VGA text output with inline color codes (`$a`, `$b`, `$c`, ...)
+- PS/2 keyboard support with Portuguese and US layouts
+- Interactive shell with cursor movement, history and autocomplete
+- ATA PIO storage driver for legacy IDE disks
+- MBR partition parsing and FAT32 filesystem reader
+- VFS abstraction layer that exposes files and directories to user commands
+- Integrated `lost` text editor with file editing and save support
+
+## Lost editor
+
+The `lost` editor is the main feature of this release.
+It runs on top of the filesystem layer, opens files from disk, and lets you edit them with keyboard-driven modes.
+
+Key editor features:
+
+- `COMMAND` mode for navigation and editor commands
+- `INSERT` mode for typing text
+- Bottom status bar showing current mode and file path
+- `:w` to save file changes to disk
+- `:q` to quit editor mode
+- `:wq` to save and exit
+- horizontal scrolling for long lines
+- line insertion, deletion and navigation with arrow keys
+
+Use the editor like this:
+
+```text
+lost <path>
+```
+
 ## What works right now
 
 - Multiboot boot flow through GRUB
-- 32-bit protected mode kernel
 - GDT and IDT
-- VGA text output with inline color codes (`$a`, `$b`, `$c`...)
-- PS/2 keyboard driver with Portuguese and US layouts
-- Shift and Caps Lock support
-- Interactive shell with editable input, cursor, and scrollback
-- Command history with timestamps
-- Kernel heap with `kmalloc` / `kfree`
-- Basic paging
-- ATA PIO driver that detects and reads from disk
-- MBR partition table parser
-- FAT32 read-only driver that mounts, reads files and directories
+- VGA text output and hardware cursor control
+- PS/2 keyboard input and modifiers
+- Shell with editable input, history, and tab completion
+- Kernel heap allocator (`kmalloc` / `kfree`)
+- Basic paging and memory tools
+- ATA PIO read support
+- MBR partition table parsing
+- FAT32 read-only driver for file and directory access
 - VFS abstraction layer over FAT32
-- System info command (`whatami`), reads CPU, GPU, RAM, disk, date and time
-- Tab autocomplete for shell commands
+- Built-in editor `lost` for file editing
+- Shell commands for listing, reading, creating and removing files
+- `whatami` system information command
 
 ## Commands
 
@@ -40,16 +71,23 @@ Some shell commands in action:
 help          list available commands
 clear         clear the screen
 echo          print text with color codes
+argc          show how many arguments were received
 history       show command history with timestamps
-layout        show or change keyboard layout
-mem           inspect kernel memory
-mem test      run a small heap test
-mem test -d   run the heap test with step-by-step output
-paging        inspect virtual memory
-whatami       show system information
-ls            list files in the root directory
-ls <path>     list files in a specific directory
-cat <path>    read and print a file
+sudo          secret command (no help text)
+layout        show or set keyboard layout
+mem           shows kernel memory usage
+paging        shows paging status
+whatami       what are you exactly?
+atatest       test ATA, MBR and FAT32
+ls            list the files in the directory
+read          display the content of the file
+touch         create an empty file
+mkdir         create a directory
+rm            remove a file
+cp            copy a file
+mv            move or rename a file
+rmdir         remove an empty directory
+lost <path>   open Lost text editor
 ```
 
 ## Dependencies
@@ -76,7 +114,7 @@ make
 
 ## Notes
 
-The ATA driver uses legacy PIO mode (ports 0x1F0-0x1F7).
+- The ATA driver uses legacy PIO mode (ports 0x1F0-0x1F7).
 - **QEMU**: works out of the box
 - **VirtualBox**: set the storage controller to IDE (PIIX4), not SATA/AHCI
 - **Real hardware**: works if BIOS has IDE compatibility mode enabled
