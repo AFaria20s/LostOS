@@ -410,7 +410,7 @@ void shell_process(void) {
   t_putchar('\n');
   if (buffer_len > 0)
     history_add(input_buffer);
-  cmd_execute(input_buffer);
+  commands_execute(input_buffer);
 
   buffer_len = 0;
   cursor_pos = 0;
@@ -463,7 +463,7 @@ void shell_input(int key) {
       }
       break;
     case KEY_TAB: {
-      int matches = cmd_autocomplete(input_buffer, shell_putc);
+      int matches = autocomplete_input(input_buffer, shell_putc);
       if (matches > 1) {
           shell_prompt();
           t_print(input_buffer);

@@ -2,7 +2,7 @@
 #define COMMANDS_H
 
 // Runs shell line
-void cmd_execute(char *line);
-int cmd_autocomplete(const char *prefix, void (*putc)(char));
+void commands_execute(char *line);
+int autocomplete_input(const char *input, void (*putc)(char));
 
 #endif
