@@ -526,11 +526,17 @@ static int autocomplete_path(const char *input, void (*putc)(char)) {
         if (!name_has_prefix(entry.name, name_prefix))
             continue;
 
+        if (entry.attributes & 0x10)
+            t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK));
+        else
+            t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+
         t_print_raw(entry.name);
         if (entry.attributes & 0x10)
             t_putchar('/');
         t_putchar(' ');
     }
+    t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
     t_putchar('\n');
 
     return matches;
