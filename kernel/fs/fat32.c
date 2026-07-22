@@ -145,8 +145,14 @@ static void fat32_parse_entry(const uint8_t *raw, struct fat32_dirent *entry) {
     int length = 0;
     int has_extension = 0;
 
-    for (int i = 0; i < 8 && raw[i] != ' '; i++)
-        entry->name[length++] = raw[i];
+    for (int i = 0; i < 8 && raw[i] != ' '; i++) {
+        char character = (char)raw[i];
+
+        if (character >= 'A' && character <= 'Z')
+            character += 'a' - 'A';
+
+        entry->name[length++] = character;
+    }
 
     for (int i = 8; i < 11; i++) {
         if (raw[i] != ' ') {
@@ -157,8 +163,14 @@ static void fat32_parse_entry(const uint8_t *raw, struct fat32_dirent *entry) {
 
     if (has_extension) {
         entry->name[length++] = '.';
-        for (int i = 8; i < 11 && raw[i] != ' '; i++)
-            entry->name[length++] = raw[i];
+        for (int i = 8; i < 11 && raw[i] != ' '; i++) {
+            char character = (char)raw[i];
+
+            if (character >= 'A' && character <= 'Z')
+                character += 'a' - 'A';
+
+            entry->name[length++] = character;
+        }
     }
 
     entry->name[length] = '\0';

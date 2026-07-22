@@ -8,8 +8,10 @@ void shell_prompt(void);
 void shell_process(void);
 // Handle a key event
 void shell_input(int key);
-
 // Print command history
 void shell_print_history(void);
+
+const char *shell_get_cwd(void);
+void shell_set_cwd(const char *path);
 
 #endif

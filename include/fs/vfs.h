@@ -26,3 +26,5 @@ int vfs_mkdir(const char *path);
 int vfs_remove(const char *path);
 int vfs_rename(const char *old_path, const char *new_path);
 int vfs_rmdir(const char *path);
+
+int vfs_is_directory(const char *path);

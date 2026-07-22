@@ -21,7 +21,8 @@ KERNEL_C = \
 	kernel/shell/commands.c \
 	kernel/shell/shell.c \
 	kernel/shell/sysinfo.c \
-	kernel/editor/editor.c
+	kernel/editor/editor.c \
+	kernel/lib/path.c
 KERNEL_ASM = boot/boot.s boot/interrupt.s
 LINKER = linker.ld
 OBJDIR = obj
