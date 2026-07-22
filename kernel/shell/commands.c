@@ -17,12 +17,12 @@
 // Maximum arguments per command
 #define CMD_MAX_ARGS 16
 
-typedef void (*cmd_func_t)(int argc, char **argv);
+typedef void (*command_func_t)(int argc, char **argv);
 
 struct command {
   const char *name;
   const char *description;
-  cmd_func_t run;
+  command_func_t run;
 };
 
 static void print_hex(uintptr_t value);
@@ -392,7 +392,7 @@ static void cmd_atatest(int argc, char **argv) {
   }
 }
 
-int cmd_autocomplete(const char *prefix, void (*putc)(char))
+static int autocomplete_command(const char *prefix, void (*putc)(char))
 {
     int prefix_len = k_strlen(prefix);
     const char *match = NULL;
@@ -431,7 +431,128 @@ int cmd_autocomplete(const char *prefix, void (*putc)(char))
     return matches;
 }
 
-// Imprime um numero com 2 digitos, com zero a esquerda se for < 10
+static int name_has_prefix(const char *name, const char *prefix) {
+    while (*prefix) {
+        char name_character = *name;
+        char prefix_character = *prefix;
+
+        if (name_character >= 'A' && name_character <= 'Z')
+            name_character += 'a' - 'A';
+        if (prefix_character >= 'A' && prefix_character <= 'Z')
+            prefix_character += 'a' - 'A';
+
+        if (name_character != prefix_character)
+            return 0;
+
+        name++;
+        prefix++;
+    }
+
+    return 1;
+}
+
+static int autocomplete_path(const char *input, void (*putc)(char)) {
+    char directory_input[256];
+    char directory[256];
+    char common[13];
+    const char *token;
+    const char *name_prefix;
+    const char *slash = NULL;
+    struct vfs_dirent entry;
+    int input_length = k_strlen(input);
+    int token_start = input_length;
+    int matches = 0;
+    int only_match_is_directory = 0;
+    int index = 0;
+
+    while (token_start > 0 && input[token_start - 1] != ' ' && input[token_start - 1] != '\t')
+        token_start--;
+
+    token = input + token_start;
+    for (const char *character = token; *character; character++) {
+        if (*character == '/')
+            slash = character;
+    }
+
+    if (slash) {
+        int length = slash - token + 1;
+
+        for (int i = 0; i < length; i++)
+            directory_input[i] = token[i];
+        directory_input[length] = '\0';
+        name_prefix = slash + 1;
+    } else {
+        directory_input[0] = '.';
+        directory_input[1] = '\0';
+        name_prefix = token;
+    }
+
+    resolve_path(shell_get_cwd(), directory_input, directory);
+
+    while (vfs_readdir(directory, index++, &entry)) {
+        if (!name_has_prefix(entry.name, name_prefix))
+            continue;
+
+        if (matches == 0) {
+            k_strcp(common, entry.name);
+            only_match_is_directory = (entry.attributes & 0x10) != 0;
+        } else {
+            int length = 0;
+
+            while (common[length] && entry.name[length] &&
+                   common[length] == entry.name[length])
+                length++;
+            common[length] = '\0';
+        }
+
+        matches++;
+    }
+
+    if (matches == 0)
+        return 0;
+
+    for (int i = k_strlen(name_prefix); common[i]; i++)
+        putc(common[i]);
+
+    if (matches == 1 && only_match_is_directory)
+        putc('/');
+
+    if (matches == 1)
+        return 1;
+
+    t_putchar('\n');
+    index = 0;
+    while (vfs_readdir(directory, index++, &entry)) {
+        if (!name_has_prefix(entry.name, name_prefix))
+            continue;
+
+        if (entry.attributes & 0x10)
+            t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK));
+        else
+            t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+
+        t_print_raw(entry.name);
+        if (entry.attributes & 0x10)
+            t_putchar('/');
+        t_putchar(' ');
+    }
+    t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+    t_putchar('\n');
+
+    return matches;
+}
+
+int autocomplete_input(const char *input, void (*putc)(char)) {
+    int length = k_strlen(input);
+
+    for (int i = 0; i < length; i++) {
+        if (input[i] == ' ' || input[i] == '\t')
+            return autocomplete_path(input, putc);
+    }
+
+    return autocomplete_command(input, putc);
+}
+
 static void print_uint2(uint8_t value) {
   if (value < 10)
     t_putchar('0');
@@ -629,7 +750,7 @@ static void print_test_step(const char *label, int ok) {
   t_putchar('\n');
 }
 
-static void cmd_mem_test_detail(int simulate_fail) {
+static void memory_test_detail(int simulate_fail) {
   struct memory_stats before;
   struct memory_stats after_alloc;
   struct memory_stats after_free;
@@ -671,7 +792,7 @@ static void cmd_mem(int argc, char **argv) {
   if (argc > 1 && k_strcmp(argv[1], "test") == 0) {
     if (argc > 2 && k_strcmp(argv[2], "-d") == 0) {
       int simulate_fail = argc > 3 && k_strcmp(argv[3], "fail") == 0;
-      cmd_mem_test_detail(simulate_fail);
+      memory_test_detail(simulate_fail);
       return;
     }
 
@@ -760,7 +881,7 @@ static void cmd_paging(int argc, char **argv) {
   t_putchar('\n');
 }
 
-void cmd_execute(char *line) {
+void commands_execute(char *line) {
   // Split the line and execute the matching command
   char *argv[CMD_MAX_ARGS];
   int argc = k_split(line, argv, CMD_MAX_ARGS);
