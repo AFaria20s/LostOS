@@ -57,3 +57,9 @@ int vfs_readdir(const char *path, int index, struct vfs_dirent *entry) {
 int vfs_is_ready(void) {
     return vfs_ready;
 }
+
+int vfs_is_directory(const char *path) {
+    struct vfs_file file;
+    if (!vfs_open(path, &file)) return 0;
+    return file.fat32.attributes & 0x10;
+}

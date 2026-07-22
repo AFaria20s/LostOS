@@ -33,6 +33,16 @@ static char history_draft[BUFFER_SIZE];
 static size_t prompt_col = 0;
 static size_t prompt_row = 0;
 
+static char cwd[256] = "/";
+
+const char *shell_get_cwd(void) {
+    return cwd;
+}
+
+void shell_set_cwd(const char *path) {
+  k_strcp(cwd, path);
+}
+
 static void history_save_draft(void) {
   int i = 0;
   while (i < BUFFER_SIZE - 1 && i < buffer_len) {
@@ -378,7 +388,9 @@ void shell_prompt(void) {
   t_print("$c404$f@");
   t_setcolor(vga_entry_color(3, VGA_COLOR_BLACK));
   t_print(OS_NAME);
-  t_print("$f:~$ ");
+  t_print("$f:");
+  t_print(shell_get_cwd());
+  t_print("$ ");
 
   prompt_col = t_column;
   prompt_row = t_row;

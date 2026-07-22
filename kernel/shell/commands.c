@@ -12,6 +12,7 @@
 #include "fs/mbr.h"
 #include "fs/vfs.h"
 #include "editor/editor.h"
+#include "lib/path.h"
 
 // Maximum arguments per command
 #define CMD_MAX_ARGS 16
@@ -23,6 +24,8 @@ struct command {
   const char *description;
   cmd_func_t run;
 };
+
+static void print_hex(uintptr_t value);
 
 // Builtin command implementations
 static void print_uint(size_t value);
@@ -37,7 +40,6 @@ static void cmd_mem(int argc, char **argv);
 static void cmd_paging(int argc, char **argv);
 static void cmd_whatami(int argc, char **argv);
 static void cmd_atatest(int argc, char **argv);
-
 static void cmd_ls(int argc, char **argv);
 static void cmd_read(int argc, char **argv);
 static void cmd_touch(int argc, char **argv);
@@ -47,8 +49,8 @@ static void cmd_cp(int argc, char **argv);
 static void cmd_mv(int argc, char **argv);
 static void cmd_rmdir(int argc, char **argv);
 static void cmd_lost(int argc, char **argv);
-
-static void print_hex(uintptr_t value);
+static void cmd_pwd(int argc, char **argv);
+static void cmd_cd(int argc, char **argv);
 
 // Command table
 // leave description empty/NULL to not show on "help"
@@ -73,30 +75,69 @@ static const struct command commands[] = {
   {"mv", "move or rename a file", cmd_mv},
   {"rmdir", "remove an empty directory", cmd_rmdir},
   {"lost", "open Lost text editor", cmd_lost},
+  {"pwd", "print current working direcory", cmd_pwd},
+  {"cd", "change directory", cmd_cd},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
 
+static void cmd_pwd(int argc, char **argv) {
+  t_print(shell_get_cwd());
+  t_print("\n");
+}
+
+static void cmd_cd(int argc, char **argv) {
+    char resolved[256];
+    struct vfs_file file;
+
+    if (argc < 2) {
+        shell_set_cwd("/");
+        return;
+    }
+
+    resolve_path(shell_get_cwd(), argv[1], resolved);
+
+    if (!vfs_open(resolved, &file)) {
+      t_print_raw(argv[1]);
+      t_print(": not found\n");
+      return;
+    }
+
+    if (!vfs_is_directory(resolved)) {
+      t_print_raw(argv[1]);
+      t_print(": not a directory\n");
+      return;
+    }
+
+    shell_set_cwd(resolved);
+}
+
 static void cmd_lost(int argc, char **argv) {
+  char resolved[256];
+
   if (argc < 2) {
     t_print("usage: lost <path>\n");
     return;
   }
 
-  editor_open(argv[1]);
+  resolve_path(shell_get_cwd(), argv[1], resolved);
+  editor_open(resolved);
 }
 
 static void cmd_read(int argc, char **argv) {
   struct vfs_file file;
   uint8_t buf[512];
   uint32_t bytes_read;
+  char resolved[256];
 
   if (argc < 2) {
     t_print("usage: read <path>\n");
     return;
   }
 
-  if (!vfs_open(argv[1], &file)) {
+  resolve_path(shell_get_cwd(), argv[1], resolved);
+
+  if (!vfs_open(resolved, &file)) {
     t_print_raw(argv[1]);
     t_print(": not found\n");
     return;
@@ -109,60 +150,82 @@ static void cmd_read(int argc, char **argv) {
 }
 
 static void cmd_touch(int argc, char **argv) {
+  char resolved[256];
+
   if (argc < 2) {
     t_print("usage: touch <path>\n");
     return;
   }
 
-  if (!vfs_create(argv[1])) {
+  resolve_path(shell_get_cwd(), argv[1], resolved);
+
+  if (!vfs_create(resolved)) {
     t_print_raw(argv[1]);
     t_print(": could not create\n");
   }
 }
 
 static void cmd_mkdir(int argc, char **argv) {
+  char resolved[256];
+
   if (argc < 2) {
     t_print("usage: mkdir <path>\n");
     return;
   }
 
-  if (!vfs_mkdir(argv[1])) {
+  resolve_path(shell_get_cwd(), argv[1], resolved);
+
+  if (!vfs_mkdir(resolved)) {
     t_print_raw(argv[1]);
     t_print(": could not create\n");
   }
 }
 
 static void cmd_rm(int argc, char **argv) {
+  char resolved[256];
+
   if (argc < 2) {
     t_print("usage: rm <path>\n");
     return;
   }
 
-  if (!vfs_remove(argv[1])) {
+  resolve_path(shell_get_cwd(), argv[1], resolved);
+
+  if (!vfs_remove(resolved)) {
     t_print_raw(argv[1]);
     t_print(": could not remove\n");
   }
 }
 
 static void cmd_rmdir(int argc, char **argv) {
+  char resolved[256];
+
   if (argc < 2) {
     t_print("usage: rmdir <path>\n");
     return;
   }
 
-  if (!vfs_rmdir(argv[1])) {
+  resolve_path(shell_get_cwd(), argv[1], resolved);
+
+  if (!vfs_rmdir(resolved)) {
     t_print_raw(argv[1]);
     t_print(": could not remove\n");
   }
 }
 
 static void cmd_mv(int argc, char **argv) {
+  char source[256];
+  char destination[256];
+
   if (argc < 3) {
     t_print("usage: mv <src> <dst>\n");
     return;
   }
 
-  if (!vfs_rename(argv[1], argv[2])) {
+  resolve_path(shell_get_cwd(), argv[1], source);
+  resolve_path(shell_get_cwd(), argv[2], destination);
+
+  if (!vfs_rename(source, destination)) {
     t_print_raw(argv[1]);
     t_print(": could not move\n");
   }
@@ -172,19 +235,24 @@ static void cmd_cp(int argc, char **argv) {
   struct vfs_file src;
   uint8_t buf[512];
   uint32_t bytes_read;
+  char source[256];
+  char destination[256];
 
   if (argc < 3) {
     t_print("usage: cp <src> <dst>\n");
     return;
   }
 
-  if (!vfs_open(argv[1], &src)) {
+  resolve_path(shell_get_cwd(), argv[1], source);
+  resolve_path(shell_get_cwd(), argv[2], destination);
+
+  if (!vfs_open(source, &src)) {
     t_print_raw(argv[1]);
     t_print(": not found\n");
     return;
   }
 
-  if (!vfs_create(argv[2])) {
+  if (!vfs_create(destination)) {
     t_print_raw(argv[2]);
     t_print(": could not create\n");
     return;
@@ -193,7 +261,7 @@ static void cmd_cp(int argc, char **argv) {
   {
     struct vfs_file dst;
 
-    if (!vfs_open(argv[2], &dst)) {
+    if (!vfs_open(destination, &dst)) {
       t_print_raw(argv[2]);
       t_print(": could not open\n");
       return;
@@ -210,8 +278,10 @@ static void cmd_cp(int argc, char **argv) {
 
 static void cmd_ls(int argc, char **argv) {
     struct vfs_dirent entry;
-    const char *path = argc > 1 ? argv[1] : "/";
+    char path[256];
     int index = 0;
+
+    resolve_path(shell_get_cwd(), argc > 1 ? argv[1] : ".", path);
 
     while (vfs_readdir(path, index++, &entry)) {
       if (entry.attributes & 0x10)
