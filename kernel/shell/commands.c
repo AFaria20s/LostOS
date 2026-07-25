@@ -284,7 +284,7 @@ static void cmd_ls(int argc, char **argv) {
     resolve_path(shell_get_cwd(), argc > 1 ? argv[1] : ".", path);
 
     while (vfs_readdir(path, index++, &entry)) {
-      if (entry.attributes & 0x10)
+      if (entry.attributes & 0x10) // if it is folder
         t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK));
       else
         t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));

@@ -356,8 +356,9 @@ static void editor_save(void) {
 
     // try to open, create if it does not exist
     if (!vfs_open(state.filepath, &file)) {
+        vfs_ensure_parents(state.filepath);
         if (!vfs_create(state.filepath))
-            return;
+            t_print("Could not create file!\n");
         if (!vfs_open(state.filepath, &file))
             return;
     }
