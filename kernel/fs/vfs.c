@@ -43,6 +43,23 @@ int vfs_rmdir(const char *path) {
     return fat32_rmdir(path);
 }
 
+int vfs_ensure_parents(const char *path) {
+    char partial[256];
+    int i = 0;
+
+    while (path[i]) {
+        if (path[i] == '/' && i > 0) {
+            k_strcp(partial, path);
+            partial[i] = '\0';
+
+            if (!vfs_is_directory(partial))
+                vfs_mkdir(partial);
+        }
+        i++;
+    }
+    return 1;
+}
+
 int vfs_readdir(const char *path, int index, struct vfs_dirent *entry) {
     struct fat32_dirent fat_entry;
     if (!fat32_readdir(path, index, &fat_entry)) return 0;
