@@ -51,6 +51,7 @@ static void cmd_rmdir(int argc, char **argv);
 static void cmd_lost(int argc, char **argv);
 static void cmd_pwd(int argc, char **argv);
 static void cmd_cd(int argc, char **argv);
+static void cmd_tree(int argc, char **argv);
 
 // Command table
 // leave description empty/NULL to not show on "help"
@@ -77,9 +78,64 @@ static const struct command commands[] = {
   {"lost", "open Lost text editor", cmd_lost},
   {"pwd", "print current working direcory", cmd_pwd},
   {"cd", "change directory", cmd_cd},
+  {"tree", "check the path structure", cmd_tree},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
+
+static void tree_print(const char *path, int depth, uint8_t *has_more_siblings) {
+    struct vfs_dirent entries[64];
+    int count = 0;
+
+    // read all entries first to know how many there are
+    while (count < 64 && vfs_readdir(path, count, &entries[count]))
+        count++;
+
+    for (int i = 0; i < count; i++) {
+        int is_last = (i == count - 1);
+
+        // draw the prefix lines for previous levels
+        for (int d = 0; d < depth; d++)
+            t_putchar(has_more_siblings[d] ? (char)0xB3 : ' ');
+
+        t_putchar(is_last ? (char)0xC0 : (char)0xC3);
+        t_putchar((char)0xC4);
+        t_putchar((char)0xC4);
+        t_putchar(' ');
+
+        if (entries[i].attributes & 0x10) {
+            t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK));
+            t_print_raw(entries[i].name);
+            t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+        } else {
+            t_print_raw(entries[i].name);
+        }
+        t_putchar('\n');
+
+        // if it is a directory, enter recursively
+        if (entries[i].attributes & 0x10) {
+            char child_path[256];
+            k_strcp(child_path, path);
+            if (path[k_strlen(path) - 1] != '/')
+                k_strapp(child_path, "/");
+            k_strapp(child_path, entries[i].name);
+
+            has_more_siblings[depth] = !is_last;
+            tree_print(child_path, depth + 1, has_more_siblings);
+        }
+    }
+}
+
+static void cmd_tree(int argc, char **argv) {
+    char resolved[256];
+    uint8_t has_more_siblings[32] = {0};
+    const char *path = argc > 1 ? argv[1] : shell_get_cwd();
+
+    resolve_path(shell_get_cwd(), path, resolved);
+    t_print_raw(resolved);
+    t_putchar('\n');
+    tree_print(resolved, 0, has_more_siblings);
+}
 
 static void cmd_pwd(int argc, char **argv) {
   t_print(shell_get_cwd());
