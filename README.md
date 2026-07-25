@@ -100,7 +100,8 @@ Tab completes commands at the beginning of a line, and file or directory names i
 | `cp <source> <destination>` | Copy a file |
 | `mv <source> <destination>` | Move or rename a file or directory |
 | `lost <path>` | Open a file in the built-in editor |
-
+| `tree <path>` | Display the path structure |
+ 
 ## The `lost` editor
 
 The editor opens and saves files through the VFS. If the file does not exist yet, it is created the first time it is saved.
