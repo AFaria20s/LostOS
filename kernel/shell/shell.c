@@ -6,6 +6,7 @@
 #include "shell/shell.h"
 #include "drivers/vga.h"
 #include "shell/sysinfo.h"
+#include "editor/editor.h"
 
 #define BUFFER_SIZE 256
 #define HISTORY_LIMIT 64
