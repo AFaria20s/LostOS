@@ -1,7 +1,7 @@
 CC = gcc
 AS = as
 CPPFLAGS = -Iinclude
-CFLAGS = -m32 -nostdlib -ffreestanding -fno-stack-protector -fno-pic -Wall
+CFLAGS = -m32 -nostdlib -ffreestanding -fno-stack-protector -fno-pic -Wall -g
 
 KERNEL_C = \
 	kernel/kernel.c \
@@ -56,3 +56,8 @@ clean:
 
 run: os.iso disk.img
 	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M
+
+debug: os.iso disk.img
+	qemu-system-x86_64 -s -S -cdrom os.iso -drive file=disk.img,format=raw -m 512M &
+	sleep 1
+	gdb kernel.bin -ex "set architecture i386" -ex "target remote localhost:1234" -ex "break paging_init" -ex "continue"
