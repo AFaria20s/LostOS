@@ -156,12 +156,13 @@ void keyboard_handler(void) {
 
   char c = translate_scancode(key);
 
-  if (c)
+  if (c) {
     if (editor_is_active())
       editor_input(c);
     else
       shell_input(c);
-
+  }
+    
   send_eoi();
 }
 
