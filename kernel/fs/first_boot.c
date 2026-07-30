@@ -9,4 +9,6 @@ int first_boot_setup() {
     vfs_mkdir("/home");     // home directory
     vfs_mkdir("/bin");      // scripts
     vfs_mkdir("/docs");     // general OS
+
+    return 1;
 }
