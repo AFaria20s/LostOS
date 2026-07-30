@@ -384,16 +384,47 @@ static void shell_move_right(void) {
   }
 }
 
+static void shell_render_prompt_template(const char *tmpl) {
+    while (*tmpl) {
+        if (*tmpl == '%') {
+            tmpl++;
+            switch (*tmpl) {
+                case 'u': {
+                    const char *u = config_get("username");
+                    if (u) t_print(u);
+                    break;
+                }
+                case 'h': {
+                    const char *h = config_get("hostname");
+                    if (h) t_print(h);
+                    break;
+                }
+                case 'p':
+                    t_print(shell_get_cwd());
+                    break;
+                case '%':
+                    t_putchar('%');
+                    break;
+                default:
+                    t_putchar('%');
+                    t_putchar(*tmpl);
+                    break;
+            }
+            tmpl++;
+        } else {
+            t_putchar(*tmpl);
+            tmpl++;
+        }
+    }
+}
+
 void shell_prompt(void) {
   
-  t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
-  t_print("$c");
-  t_print(config_get("username"));
-  t_print("$f@");
-  t_print(config_get("hostname"));
-  t_print("$f:");
-  t_print(shell_get_cwd());
-  t_print("$ ");
+  const char *tmpl = config_get("prompt");
+  if (tmpl)
+    shell_render_prompt_template(tmpl);
+  else
+    t_print("$c404$f@LostOS:~$ ");        // fallback if config doesnt exist
 
   prompt_col = t_column;
   prompt_row = t_row;
