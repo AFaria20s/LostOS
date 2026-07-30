@@ -396,6 +396,8 @@ void shell_prompt(void) {
   prompt_col = t_column;
   prompt_row = t_row;
 
+  t_putentryat(' ', vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK), t_column, t_row);
+
   shell_move_cursor_to(0);
 }
 
