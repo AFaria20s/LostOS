@@ -10,6 +10,7 @@
 #include "drivers/vga.h"
 #include "drivers/ata.h"
 #include "fs/vfs.h"
+#include "fs/first_boot.h"
 
 static const char *old_boot_logo =
 " /$$        /$$$$$$   /$$$$$$  /$$$$$$$$        /$$$$$$   /$$$$$$ \n"
@@ -58,8 +59,6 @@ static void welcome_screen(void) {
 }
 
 void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
-  t_init();
-  memory_init(multiboot_magic, multiboot_info_addr);
   int gdt_ok = gdt_init();
   int paging_ok = 0;
   int idt_ok = 0;
@@ -70,11 +69,17 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
   if (gdt_ok && paging_ok)
     idt_ok = idt_init();
 
+  t_init();
+  memory_init(multiboot_magic, multiboot_info_addr);
   ata_init();
   vfs_init();
 
+  if(vfs_is_ready()) {
+    first_boot_setup();
+    shell_set_cwd("/home");
+  }
+    
   vga_enable_cursor(14, 15);
-
   welcome_screen();
 
   if (idt_ok)

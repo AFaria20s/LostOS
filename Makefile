@@ -1,7 +1,7 @@
 CC = gcc
 AS = as
 CPPFLAGS = -Iinclude
-CFLAGS = -m32 -nostdlib -ffreestanding -fno-stack-protector -fno-pic -Wall
+CFLAGS = -m32 -nostdlib -ffreestanding -fno-stack-protector -fno-pic -Wall -g
 
 KERNEL_C = \
 	kernel/kernel.c \
@@ -22,7 +22,8 @@ KERNEL_C = \
 	kernel/shell/shell.c \
 	kernel/shell/sysinfo.c \
 	kernel/editor/editor.c \
-	kernel/lib/path.c
+	kernel/lib/path.c \
+	kernel/fs/first_boot.c
 KERNEL_ASM = boot/boot.s boot/interrupt.s
 LINKER = linker.ld
 OBJDIR = obj
@@ -56,3 +57,8 @@ clean:
 
 run: os.iso disk.img
 	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M
+
+debug: os.iso disk.img
+	qemu-system-x86_64 -s -S -cdrom os.iso -drive file=disk.img,format=raw -m 512M &
+	sleep 1
+	gdb kernel.bin -ex "set architecture i386" -ex "target remote localhost:1234"
