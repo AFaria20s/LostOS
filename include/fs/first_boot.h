@@ -1,0 +1,1 @@
+int first_boot_setup(void);

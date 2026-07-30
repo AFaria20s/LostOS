@@ -10,6 +10,7 @@
 #include "drivers/vga.h"
 #include "drivers/ata.h"
 #include "fs/vfs.h"
+#include "fs/first_boot.h"
 
 static const char *old_boot_logo =
 " /$$        /$$$$$$   /$$$$$$  /$$$$$$$$        /$$$$$$   /$$$$$$ \n"
@@ -72,6 +73,9 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
   memory_init(multiboot_magic, multiboot_info_addr);
   ata_init();
   vfs_init();
+  
+  if(vfs_is_ready())
+    first_boot_setup();
 
   vga_enable_cursor(14, 15);
   welcome_screen();
