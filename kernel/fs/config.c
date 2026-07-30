@@ -68,8 +68,8 @@ static int config_load(void) {
 static void config_write_defaults(void) {
     struct vfs_file file;
     const char *defaults =
-        "username=lost\n"
-        "hostname=lostos\n"
+        "username=$2lost\n"
+        "hostname=$alostos\n"
         "theme=default\n";
 
     vfs_create(CONFIG_PATH);
