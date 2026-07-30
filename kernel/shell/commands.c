@@ -937,8 +937,36 @@ static void cmd_paging(int argc, char **argv) {
   t_putchar('\n');
 }
 
+static void script_execute(const char *path) {
+    struct vfs_file file;
+    char buf[512];
+    uint32_t bytes_read;
+    char line_buf[256];
+    int line_len = 0;
+
+    if (!vfs_open(path, &file))
+        return;
+
+    while ((bytes_read = vfs_read(&file, buf, sizeof(buf))) > 0) {
+        for (uint32_t i = 0; i < bytes_read; i++) {
+            if (buf[i] == '\n') {
+                line_buf[line_len] = '\0';
+                if (line_len > 0)
+                    commands_execute(line_buf);
+                line_len = 0;
+            } else if (line_len < 255) {
+                line_buf[line_len++] = buf[i];
+            }
+        }
+    }
+
+    if (line_len > 0) {
+        line_buf[line_len] = '\0';
+        commands_execute(line_buf);
+    }
+}
+
 void commands_execute(char *line) {
-  // Split the line and execute the matching command
   char *argv[CMD_MAX_ARGS];
   int argc = k_split(line, argv, CMD_MAX_ARGS);
 
@@ -952,7 +980,18 @@ void commands_execute(char *line) {
     }
   }
 
-  // comando não encontrado
+  // if command not found in default commands, search in /bin directory for custom commands
+  char script_path[256];
+  struct vfs_file test;
+
+  k_strcat(script_path, "/bin/", argv[0], "");
+  k_strapp(script_path, ".lts");
+
+  if (vfs_open(script_path, &test)) {
+      script_execute(script_path);
+      return;
+  }
+
   t_print_raw(argv[0]);
   t_print(": command not found\n");
 }
