@@ -3,14 +3,15 @@
 
 #include "arch/gdt.h"
 #include "arch/idt.h"
-#include "drivers/keyboard.h"
 #include "mm/memory.h"
 #include "mm/paging.h"
 #include "shell/shell.h"
 #include "drivers/vga.h"
 #include "drivers/ata.h"
+#include "drivers/keyboard.h"
 #include "fs/vfs.h"
 #include "fs/first_boot.h"
+#include "fs/config.h"
 
 static const char *old_boot_logo =
 " /$$        /$$$$$$   /$$$$$$  /$$$$$$$$        /$$$$$$   /$$$$$$ \n"
@@ -78,7 +79,9 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
     first_boot_setup();
     shell_set_cwd("/home");
   }
-    
+
+  config_init();
+
   vga_enable_cursor(14, 15);
   welcome_screen();
 

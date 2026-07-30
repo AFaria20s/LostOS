@@ -7,6 +7,7 @@
 #include "drivers/vga.h"
 #include "shell/sysinfo.h"
 #include "editor/editor.h"
+#include "fs/config.h"
 
 #define BUFFER_SIZE 256
 #define HISTORY_LIMIT 64
@@ -386,9 +387,10 @@ static void shell_move_right(void) {
 void shell_prompt(void) {
   
   t_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
-  t_print("$c404$f@");
-  t_setcolor(vga_entry_color(3, VGA_COLOR_BLACK));
-  t_print(OS_NAME);
+  t_print("$c");
+  t_print(config_get("username"));
+  t_print("$f@");
+  t_print(config_get("hostname"));
   t_print("$f:");
   t_print(shell_get_cwd());
   t_print("$ ");
