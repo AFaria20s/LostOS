@@ -132,7 +132,7 @@ You will need a compiler that can produce 32-bit x86 code, GNU `as` and `ld`, GR
 ## Build and run
 
 ```bash
-git clone https://github.com/AFaria20s/LostOS.git
+git clone https://github.com/bitbyterr/LostOS.git
 cd LostOS
 make run
 ```
