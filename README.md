@@ -13,6 +13,9 @@ LostOS is still under active development. It is meant for learning and experimen
 | VGA, keyboard, and shell | Working |
 | ATA PIO, MBR, and FAT32 | Working |
 | File creation, editing, and removal | Working |
+| First-boot filesystem setup | Working |
+| Configurable shell prompt | Working |
+| Shell scripts (`/bin/*.lts`) | Working |
 | FAT long file names (LFN) | Not supported yet |
 | Modern hardware support | Experimental / limited |
 
@@ -36,6 +39,9 @@ LostOS is still under active development. It is meant for learning and experimen
 - ATA PIO driver, MBR parsing, and a VFS layer on top of FAT32.
 - File and directory operations with relative and absolute paths.
 - Built-in `lost` text editor with command and insert modes.
+- Automatic first-boot creation of `/etc`, `/home`, `/bin`, and `/docs`.
+- Persistent shell configuration in `/etc/lost.cfg`, including a configurable prompt.
+- Simple line-based scripts: commands in `/bin/<name>.lts` can be run as `<name>`.
 
 ## Architecture
 
@@ -45,7 +51,7 @@ GRUB
       ├── GDT / IDT / Paging / Heap
       ├── VGA / PS2 keyboard / RTC
       ├── ATA PIO → MBR → FAT32 → VFS
-      └── Shell → commands → lost editor
+      └── Shell → commands / .lts scripts → lost editor
 ```
 
 | Directory | Contents |
@@ -62,16 +68,43 @@ GRUB
 
 ## Shell and paths
 
-The shell keeps track of a current working directory. Filesystem commands accept absolute and relative paths, including `.` and `..`.
+The shell keeps track of a current working directory, initially `/home` on a mounted disk. Filesystem commands accept absolute and relative paths, including `.` and `..`.
 
 ```text
-404@LostOS:/$ cd docs
-404@LostOS:/docs$ read info.txt
-404@LostOS:/docs$ cd ..
-404@LostOS:/$ ls ./docs
+lost@lostos:/home$ cd docs
+lost@lostos:/home/docs$ read info.txt
+lost@lostos:/home/docs$ cd ..
+lost@lostos:/home$ ls ./docs
 ```
 
 Tab completes commands at the beginning of a line, and file or directory names in arguments. When more than one option is available, the shell prints the matches: directories are light blue and end with `/`; files are white.
+
+### First boot and shell configuration
+
+New development disk images start empty. On the first successful FAT32 mount, LostOS creates `/etc`, `/home`, `/bin`, and `/docs`. It also creates `/etc/lost.cfg` if it is missing:
+
+```ini
+username=$2lost
+hostname=$alostos
+prompt=$u@$h:$p$␠
+theme=default
+```
+
+The prompt template supports `%u` (username), `%h` (hostname), `%p` (current path), and `%%` (a literal percent sign). `␠` above represents one trailing space after `$`; it is not written to the actual configuration file. Values are rendered with the shell's normal colour markup, so the default `$2` and `$a` prefixes colour the username and hostname. Changes to the file apply after the next boot.
+
+### Scripts
+
+Create a text file named `/bin/<name>.lts`; each non-empty line is executed as a shell command. Invoke it by its name, without the path or extension.
+
+```text
+lost@lostos:/home$ lost /bin/hello.lts
+echo Hello from LostOS
+pwd
+:wq
+lost@lostos:/home$ hello
+Hello from LostOS
+/home
+```
 
 ## Available commands
 
@@ -144,6 +177,7 @@ make run
 | `make` | Create `os.iso` |
 | `make disk.img` | Create the development FAT32 disk image |
 | `make run` | Build and start LostOS in QEMU |
+| `make debug` | Start QEMU paused with a GDB server on port `1234`, then attach GDB to `kernel.bin` |
 | `make clean` | Remove generated build artifacts |
 
 ## Storage and current limitations

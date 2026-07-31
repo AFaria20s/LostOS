@@ -70,6 +70,7 @@ static void config_write_defaults(void) {
     const char *defaults =
         "username=$2lost\n"
         "hostname=$alostos\n"
+        "prompt=$u@$h:$p$ "
         "theme=default\n";
 
     vfs_create(CONFIG_PATH);
