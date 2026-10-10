@@ -52,6 +52,10 @@ void t_print_padded(const char *text, int width);
 void t_force_redraw(void);
 void t_clear(void);
 
+// Redirects terminal output to a caller-provided buffer until it is ended.
+void t_capture_begin(char *buffer, size_t capacity);
+size_t t_capture_end(void);
+
 // Controls the text cursor.
 void vga_enable_cursor(uint8_t cursor_start, uint8_t cursor_end);
 void vga_disable_cursor(void);
