@@ -78,6 +78,7 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
   if(vfs_is_ready()) {
     first_boot_setup();
     shell_set_cwd("/home");
+    shell_history_init();
   }
 
   config_init();

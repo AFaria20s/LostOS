@@ -10,6 +10,7 @@ void shell_process(void);
 void shell_input(int key);
 // Print command history
 void shell_print_history(void);
+void shell_history_init(void);
 
 const char *shell_get_cwd(void);
 void shell_set_cwd(const char *path);

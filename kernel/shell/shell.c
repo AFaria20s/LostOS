@@ -8,9 +8,11 @@
 #include "shell/sysinfo.h"
 #include "editor/editor.h"
 #include "fs/config.h"
+#include "fs/vfs.h"
 
 #define BUFFER_SIZE 256
 #define HISTORY_LIMIT 64
+#define HISTORY_PATH "/history.txt"
 #define CMOS_ADDRESS 0x70
 #define CMOS_DATA    0x71
 
@@ -36,6 +38,20 @@ static size_t prompt_col = 0;
 static size_t prompt_row = 0;
 
 static char cwd[256] = "/";
+
+static void history_persist(const char *line) {
+  struct vfs_file file;
+  size_t length = k_strlen(line);
+
+  if (!vfs_open(HISTORY_PATH, &file)) {
+    if (!vfs_create(HISTORY_PATH) || !vfs_open(HISTORY_PATH, &file))
+      return;
+  }
+
+  file.fat32.offset = file.fat32.size;
+  vfs_write(&file, line, length);
+  vfs_write(&file, "\n", 1);
+}
 
 const char *shell_get_cwd(void) {
     return cwd;
@@ -189,6 +205,66 @@ static void history_add(const char *line) {
 
   while (history_count > HISTORY_LIMIT)
     history_drop_oldest();
+
+  history_persist(line);
+}
+
+static void history_add_loaded(const char *line) {
+  struct history_entry *entry;
+
+  if (!line[0])
+    return;
+
+  entry = (struct history_entry *)kmalloc(sizeof(struct history_entry));
+  if (!entry)
+    return;
+  entry->line = history_copy_line(line);
+  if (!entry->line) {
+    kfree(entry);
+    return;
+  }
+
+  entry->seq = ++history_seq;
+  k_strcp(entry->timestamp, "--:--:--");
+  entry->older = history_newest;
+  entry->newer = NULL;
+  if (history_newest)
+    history_newest->newer = entry;
+  else
+    history_oldest = entry;
+  history_newest = entry;
+  history_count++;
+
+  while (history_count > HISTORY_LIMIT)
+    history_drop_oldest();
+}
+
+void shell_history_init(void) {
+  struct vfs_file file;
+  char buffer[256];
+  char line[BUFFER_SIZE];
+  uint32_t bytes_read;
+  int line_length = 0;
+
+  if (!vfs_open(HISTORY_PATH, &file))
+    return;
+
+  while ((bytes_read = vfs_read(&file, buffer, sizeof(buffer))) > 0) {
+    for (uint32_t i = 0; i < bytes_read; i++) {
+      if (buffer[i] == '\n') {
+        line[line_length] = '\0';
+        history_add_loaded(line);
+        line_length = 0;
+      } else if (buffer[i] != '\r' && line_length < BUFFER_SIZE - 1) {
+        line[line_length++] = buffer[i];
+      }
+    }
+  }
+
+  if (line_length > 0) {
+    line[line_length] = '\0';
+    history_add_loaded(line);
+  }
 }
 
 static const char *history_prev(void) {
