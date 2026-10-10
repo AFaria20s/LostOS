@@ -436,6 +436,7 @@ void shell_prompt(void) {
 
 void shell_process(void) {
   input_buffer[buffer_len] = '\0';
+  int collecting_before = commands_input_active();
 
   size_t col, row;
   shell_ensure_input_visible(buffer_len);
@@ -444,14 +445,24 @@ void shell_process(void) {
   t_row = row;
 
   t_putchar('\n');
-  if (buffer_len > 0)
+  if (buffer_len > 0 && !commands_input_active())
     history_add(input_buffer);
-  commands_execute(input_buffer);
+  if (!commands_input_line(input_buffer))
+    commands_execute(input_buffer);
+  if (commands_input_active() && !collecting_before) {
+    prompt_col = t_column;
+    prompt_row = t_row;
+    vga_update_cursor(prompt_col, prompt_row);
+  } else if (collecting_before) {
+    prompt_col = t_column;
+    prompt_row = t_row;
+    vga_update_cursor(prompt_col, prompt_row);
+  }
 
   buffer_len = 0;
   cursor_pos = 0;
 
-  if (!editor_is_active())
+  if (!editor_is_active() && !commands_input_active())
     shell_prompt();
 }
 
@@ -461,6 +472,16 @@ static void shell_putc(char c) {
 
 void shell_input(int key) {
   switch (key) {
+    case KEY_EOF:
+      if (commands_input_active()) {
+        commands_input_eof();
+        buffer_len = 0;
+        cursor_pos = 0;
+        input_buffer[0] = '\0';
+        if (!editor_is_active())
+          shell_prompt();
+      }
+      break;
     case '\n':
       shell_process();
       break;

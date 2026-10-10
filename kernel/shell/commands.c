@@ -100,6 +100,63 @@ static const int command_count = sizeof(commands) / sizeof(commands[0]);
 
 static const char *shell_input_data;
 static size_t shell_input_length;
+static int shell_collecting_input;
+static char shell_collecting_path[256];
+
+static int shell_begin_input_redirect(const char *path, int append) {
+  char resolved[256];
+  struct vfs_file file;
+
+  resolve_path(shell_get_cwd(), path, resolved);
+  if (!append && vfs_open(resolved, &file) && !vfs_remove(resolved))
+    return 0;
+  if (!vfs_open(resolved, &file) &&
+      (!vfs_create(resolved) || !vfs_open(resolved, &file)))
+    return 0;
+
+  k_strcp(shell_collecting_path, resolved);
+  shell_collecting_input = 1;
+  return 1;
+}
+
+static int shell_write_input_line(const char *line) {
+  struct vfs_file file;
+  char data[COMMAND_LINE_MAX + 1];
+  size_t length = k_strlen(line);
+
+  if (length >= COMMAND_LINE_MAX)
+    length = COMMAND_LINE_MAX - 1;
+  for (size_t i = 0; i < length; i++)
+    data[i] = line[i];
+  data[length++] = '\n';
+
+  if (!vfs_open(shell_collecting_path, &file))
+    return 0;
+  file.fat32.offset = file.fat32.size;
+  return vfs_write(&file, data, length) == length;
+}
+
+int commands_input_active(void) {
+  return shell_collecting_input;
+}
+
+int commands_input_line(const char *line) {
+  if (!shell_collecting_input)
+    return 0;
+
+  if (!shell_write_input_line(line))
+    t_print("input: write failed\n");
+  return 1;
+}
+
+void commands_input_eof(void) {
+  if (!shell_collecting_input)
+    return;
+
+  shell_collecting_input = 0;
+  shell_collecting_path[0] = '\0';
+  t_print("^D\n");
+}
 
 static void tree_print(const char *path, int depth, uint8_t *has_more_siblings) {
     struct vfs_dirent entries[64];
@@ -1357,6 +1414,23 @@ static int shell_execute_stage(char *line, const char *input, size_t input_lengt
     command[command_length++] = line[i];
   }
   command[command_length] = '\0';
+
+  if (output_path[0] && !input_path[0]) {
+    char command_copy[COMMAND_LINE_MAX];
+    char *command_argv[CMD_MAX_ARGS];
+    int command_argc;
+
+    k_strcp(command_copy, command);
+    command_argc = k_split(command_copy, command_argv, CMD_MAX_ARGS);
+    if (command_argc == 1 && k_strcmp(command_argv[0], "cat") == 0) {
+      if (!shell_begin_input_redirect(output_path, append)) {
+        t_print_raw(output_path);
+        t_print(": could not open\n");
+        return 1;
+      }
+      return 0;
+    }
+  }
 
   char file_input[SHELL_IO_BUFFER_SIZE];
   if (input_path[0]) {

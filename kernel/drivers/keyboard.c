@@ -16,6 +16,7 @@
 #define SCANCODE_ENTER       0x1C
 #define SCANCODE_LSHIFT      0x2A
 #define SCANCODE_RSHIFT      0x36
+#define SCANCODE_CTRL        0x1D
 #define SCANCODE_CAPSLOCK    0x3A
 #define SCANCODE_EXTENDED    0xE0
 #define SCANCODE_RELEASE     0x80
@@ -35,6 +36,7 @@ static const struct layout *cur_layout = &layouts[0];
 static int shift_pressed = 0;
 static int caps_lock = 0;
 static int altgr_pressed = 0;
+static int ctrl_pressed = 0;
 static int extended = 0;
 
 int keyboard_is_ready(void) {
@@ -133,6 +135,12 @@ void keyboard_handler(void) {
     return;
   }
 
+  if (key == SCANCODE_CTRL) {
+    ctrl_pressed = !is_release;
+    send_eoi();
+    return;
+  }
+
   if(key == SCANCODE_TAB && !is_release) {
     if (editor_is_active())
       editor_input(KEY_TAB);
@@ -157,6 +165,14 @@ void keyboard_handler(void) {
   char c = translate_scancode(key);
 
   if (c) {
+    if (ctrl_pressed && (c == 'd' || c == 'D')) {
+      if (editor_is_active())
+        editor_input(KEY_EOF);
+      else
+        shell_input(KEY_EOF);
+      send_eoi();
+      return;
+    }
     if (editor_is_active())
       editor_input(c);
     else
