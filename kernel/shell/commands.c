@@ -11,6 +11,7 @@
 #include "fs/fat32.h"
 #include "fs/mbr.h"
 #include "fs/vfs.h"
+#include "fs/config.h"
 #include "editor/editor.h"
 #include "lib/path.h"
 
@@ -812,6 +813,8 @@ static void cmd_cat(int argc, char **argv) {
 
 static void cmd_grep(int argc, char **argv) {
   const char *needle;
+  const char *configured_color;
+  char color_code;
   size_t line_start = 0;
 
   if (argc < 2) {
@@ -819,6 +822,12 @@ static void cmd_grep(int argc, char **argv) {
     return;
   }
   needle = argv[1];
+  configured_color = config_get("grep_color");
+  color_code = 'e';
+  if (configured_color && configured_color[0]) {
+    color_code = configured_color[0] == '$' && configured_color[1]
+                   ? configured_color[1] : configured_color[0];
+  }
 
   for (size_t i = 0; i <= shell_input_length; i++) {
     if (i == shell_input_length || shell_input_data[i] == '\n') {
@@ -840,7 +849,31 @@ static void cmd_grep(int argc, char **argv) {
           found = 1;
 
       if (found) {
-        t_print_raw(line);
+        if (needle_length == 0) {
+          t_print_raw(line);
+          if (i < shell_input_length)
+            t_putchar('\n');
+          line_start = i + 1;
+          continue;
+        }
+        size_t offset = 0;
+        while (offset < line_length) {
+          size_t match = offset;
+          while (match + needle_length <= line_length &&
+                 k_strncmp(line + match, needle, needle_length) != 0)
+            match++;
+
+          if (match > offset)
+            t_write(line + offset, match - offset);
+          if (match + needle_length <= line_length) {
+            t_set_color_code(color_code);
+            t_write(line + match, needle_length);
+            t_set_color_code('f');
+            offset = match + needle_length;
+          } else {
+            break;
+          }
+        }
         if (i < shell_input_length)
           t_putchar('\n');
       }

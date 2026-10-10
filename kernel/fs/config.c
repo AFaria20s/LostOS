@@ -71,6 +71,7 @@ static void config_write_defaults(void) {
         "username=$2lost\n"
         "hostname=$alostos\n"
         "prompt=\%u@\%h:\%p$ \n"
+        "grep_color=$e\n"
         "theme=default\n";
 
     vfs_create(CONFIG_PATH);
