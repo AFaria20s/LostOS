@@ -7,6 +7,7 @@
 
 #define VGA_MEMORY 0xB8000
 #define VGA_SCROLLBACK_HEIGHT 256
+#define VGA_TAB_WIDTH 8
 
 size_t t_row;
 size_t t_column;
@@ -205,6 +206,13 @@ void t_putchar(char c) {
       t_scroll();
     else
       vga_update_cursor(t_column, t_row);
+    return;
+  }
+
+  if (c == '\t') {
+    size_t spaces = VGA_TAB_WIDTH - (t_column % VGA_TAB_WIDTH);
+    while (spaces-- > 0)
+      t_putchar(' ');
     return;
   }
 
