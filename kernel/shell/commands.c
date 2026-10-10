@@ -64,6 +64,8 @@ static void cmd_wc(int argc, char **argv);
 static int expand_echo_substitutions(const char *line, char *expanded, size_t capacity);
 static int format_echo_line(const char *line, char *formatted, size_t capacity);
 static void restore_echo_spaces(char *text);
+static int expand_wildcards(char **argv, int argc, char **expanded_argv,
+                            int max_args, char *storage, size_t storage_size);
 
 // Command table
 // leave description empty/NULL to not show on "help"
@@ -937,6 +939,96 @@ static int append_text(char *destination, size_t *length, size_t capacity,
   return 1;
 }
 
+static int wildcard_match(const char *pattern, const char *text) {
+  if (*pattern == '\0')
+    return *text == '\0';
+  if (*pattern == '*')
+    return wildcard_match(pattern + 1, text) ||
+           (*text && wildcard_match(pattern, text + 1));
+  return *text && (*pattern == '?' || *pattern == *text) &&
+         wildcard_match(pattern + 1, text + 1);
+}
+
+static int has_wildcard(const char *text) {
+  for (size_t i = 0; text[i]; i++)
+    if (text[i] == '*' || text[i] == '?')
+      return 1;
+  return 0;
+}
+
+static int expand_wildcards(char **argv, int argc, char **expanded_argv,
+                            int max_args, char *storage, size_t storage_size) {
+  int expanded_argc = 0;
+  size_t storage_length = 0;
+
+  for (int i = 0; i < argc; i++) {
+    const char *argument = argv[i];
+    if (!has_wildcard(argument) || i == 0) {
+      if (expanded_argc >= max_args)
+        break;
+      expanded_argv[expanded_argc++] = argv[i];
+      continue;
+    }
+
+    size_t argument_length = k_strlen(argument);
+    size_t slash = argument_length;
+    while (slash > 0 && argument[slash - 1] != '/')
+      slash--;
+
+    char directory[256];
+    char pattern[256];
+    if (slash >= sizeof(directory) || argument_length - slash >= sizeof(pattern))
+      return 0;
+
+    if (slash == 0)
+      k_strcp(directory, shell_get_cwd());
+    else {
+      for (size_t j = 0; j < slash; j++)
+        directory[j] = argument[j];
+      directory[slash] = '\0';
+    }
+    for (size_t j = 0; j < argument_length - slash; j++)
+      pattern[j] = argument[slash + j];
+    pattern[argument_length - slash] = '\0';
+
+    char resolved_directory[256];
+    resolve_path(shell_get_cwd(), directory, resolved_directory);
+    int matches = 0;
+    for (int index = 0; ; index++) {
+      struct vfs_dirent entry;
+      if (!vfs_readdir(resolved_directory, index, &entry))
+        break;
+      if (!wildcard_match(pattern, entry.name))
+        continue;
+      if (expanded_argc >= max_args ||
+          storage_length + k_strlen(resolved_directory) + k_strlen(entry.name) + 2 >=
+            storage_size)
+        return 0;
+
+      expanded_argv[expanded_argc++] = storage + storage_length;
+      if (slash == 0) {
+        k_strcp(storage + storage_length, entry.name);
+        storage_length += k_strlen(entry.name) + 1;
+      } else {
+        for (size_t j = 0; j < slash; j++)
+          storage[storage_length++] = argument[j];
+        k_strcp(storage + storage_length, entry.name);
+        storage_length += k_strlen(entry.name) + 1;
+      }
+      matches++;
+    }
+
+    if (matches == 0) {
+      if (expanded_argc >= max_args)
+        return 0;
+      expanded_argv[expanded_argc++] = argv[i];
+    }
+  }
+
+  expanded_argv[expanded_argc] = NULL;
+  return expanded_argc;
+}
+
 static int expand_echo_substitutions(const char *line, char *expanded, size_t capacity) {
   size_t output_length = 0;
   size_t input_length = k_strlen(line);
@@ -1316,9 +1408,12 @@ static void script_execute(const char *path) {
 
 static int commands_execute_simple(char *line) {
   char *argv[CMD_MAX_ARGS];
+  char *expanded_argv[CMD_MAX_ARGS];
   char expanded_line[COMMAND_LINE_MAX];
   char formatted_line[COMMAND_LINE_MAX];
+  char wildcard_storage[COMMAND_LINE_MAX];
   int argc;
+  int expanded_argc;
 
   if (command_name_is_echo(line)) {
     if (!expand_echo_substitutions(line, expanded_line, sizeof(expanded_line)))
@@ -1337,6 +1432,14 @@ static int commands_execute_simple(char *line) {
     for (int i = 1; i < argc; i++)
       restore_echo_spaces(argv[i]);
   }
+
+  expanded_argc = expand_wildcards(argv, argc, expanded_argv, CMD_MAX_ARGS - 1,
+                                   wildcard_storage, sizeof(wildcard_storage));
+  if (expanded_argc <= 0)
+    return 1;
+  argc = expanded_argc;
+  for (int i = 0; i < argc; i++)
+    argv[i] = expanded_argv[i];
 
   for (int i = 0; i < command_count; i++) {
     if (k_strcmp(argv[0], commands[i].name) == 0) {
