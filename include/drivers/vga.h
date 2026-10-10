@@ -44,6 +44,7 @@ void t_init(void);
 void t_print(const char *data);
 void t_print_raw(const char *data);
 void t_write(const char *data, size_t size);
+void t_set_color_code(char code);
 void t_setcolor(uint8_t color);
 void t_scroll(void);
 void t_scroll_view_up(void);

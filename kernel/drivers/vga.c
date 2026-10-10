@@ -244,7 +244,10 @@ void t_print_padded(const char *text, int width) {
     t_putchar(' ');
 }
 
-static void t_print_color_code(char code) {
+void t_set_color_code(char code) {
+  if (code >= 'A' && code <= 'F')
+    code = (char)(code - 'A' + 'a');
+
   switch (code) {
   case '0':
     t_setcolor(vga_entry_color(VGA_COLOR_BLACK, VGA_COLOR_BLACK));
@@ -310,7 +313,7 @@ void t_print(const char *data) {
       }
 
       if ((next >= '0' && next <= '9') || (next >= 'a' && next <= 'f')) {
-        t_print_color_code(next);
+        t_set_color_code(next);
         data += 2;
         continue;
       }

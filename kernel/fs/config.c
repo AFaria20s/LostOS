@@ -24,8 +24,21 @@ static void config_parse_line(char *line) {
         return; // invalid line, no '='
 
     line[eq_pos] = '\0';
-    const char *key = line;
-    const char *value = line + eq_pos + 1;
+    char *key = line;
+    char *value = line + eq_pos + 1;
+    int value_end;
+
+    while (*key == ' ' || *key == '\t')
+        key++;
+    value_end = k_strlen(key);
+    while (value_end > 0 &&
+           (key[value_end - 1] == ' ' || key[value_end - 1] == '\t'))
+        key[--value_end] = '\0';
+    value_end = k_strlen(value);
+    while (value_end > 0 &&
+           (value[value_end - 1] == ' ' || value[value_end - 1] == '\t' ||
+            value[value_end - 1] == '\r'))
+        value[--value_end] = '\0';
 
     k_strcp(entries[entry_count].key, key);
     k_strcp(entries[entry_count].value, value);
@@ -71,6 +84,7 @@ static void config_write_defaults(void) {
         "username=$2lost\n"
         "hostname=$alostos\n"
         "prompt=\%u@\%h:\%p$ \n"
+        "grep_color=$e\n"
         "theme=default\n";
 
     vfs_create(CONFIG_PATH);
