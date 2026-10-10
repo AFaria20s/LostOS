@@ -19,6 +19,7 @@
 #define COMMAND_LINE_MAX 512
 #define ECHO_SPACE_MARKER '\x1D'
 #define ECHO_TAB_MARKER '\x1E'
+#define SHELL_IO_BUFFER_SIZE 4096
 
 typedef void (*command_func_t)(int argc, char **argv);
 
@@ -55,6 +56,10 @@ static void cmd_lost(int argc, char **argv);
 static void cmd_pwd(int argc, char **argv);
 static void cmd_cd(int argc, char **argv);
 static void cmd_tree(int argc, char **argv);
+static void cmd_cat(int argc, char **argv);
+static void cmd_grep(int argc, char **argv);
+static void cmd_head(int argc, char **argv);
+static void cmd_wc(int argc, char **argv);
 static int expand_echo_substitutions(const char *line, char *expanded, size_t capacity);
 static int format_echo_line(const char *line, char *formatted, size_t capacity);
 static void restore_echo_spaces(char *text);
@@ -85,9 +90,73 @@ static const struct command commands[] = {
   {"pwd", "print current working direcory", cmd_pwd},
   {"cd", "change directory", cmd_cd},
   {"tree", "check the path structure", cmd_tree},
+  {"cat", "prints file or pipe input", cmd_cat},
+  {"grep", "filters pipe input by text", cmd_grep},
+  {"head", "prints the first lines of pipe input", cmd_head},
+  {"wc", "counts lines and bytes from pipe input", cmd_wc},
 };
 
 static const int command_count = sizeof(commands) / sizeof(commands[0]);
+
+static const char *shell_input_data;
+static size_t shell_input_length;
+static int shell_collecting_input;
+static char shell_collecting_path[256];
+
+static int shell_begin_input_redirect(const char *path, int append) {
+  char resolved[256];
+  struct vfs_file file;
+
+  resolve_path(shell_get_cwd(), path, resolved);
+  if (!append && vfs_open(resolved, &file) && !vfs_remove(resolved))
+    return 0;
+  if (!vfs_open(resolved, &file) &&
+      (!vfs_create(resolved) || !vfs_open(resolved, &file)))
+    return 0;
+
+  k_strcp(shell_collecting_path, resolved);
+  shell_collecting_input = 1;
+  return 1;
+}
+
+static int shell_write_input_line(const char *line) {
+  struct vfs_file file;
+  char data[COMMAND_LINE_MAX + 1];
+  size_t length = k_strlen(line);
+
+  if (length >= COMMAND_LINE_MAX)
+    length = COMMAND_LINE_MAX - 1;
+  for (size_t i = 0; i < length; i++)
+    data[i] = line[i];
+  data[length++] = '\n';
+
+  if (!vfs_open(shell_collecting_path, &file))
+    return 0;
+  file.fat32.offset = file.fat32.size;
+  return vfs_write(&file, data, length) == length;
+}
+
+int commands_input_active(void) {
+  return shell_collecting_input;
+}
+
+int commands_input_line(const char *line) {
+  if (!shell_collecting_input)
+    return 0;
+
+  if (!shell_write_input_line(line))
+    t_print("input: write failed\n");
+  return 1;
+}
+
+void commands_input_eof(void) {
+  if (!shell_collecting_input)
+    return;
+
+  shell_collecting_input = 0;
+  shell_collecting_path[0] = '\0';
+  t_print("^D\n");
+}
 
 static void tree_print(const char *path, int depth, uint8_t *has_more_siblings) {
     struct vfs_dirent entries[64];
@@ -713,6 +782,106 @@ static void cmd_echo(int argc, char **argv) {
   t_putchar('\n');
 }
 
+static void print_input(void) {
+  if (shell_input_data && shell_input_length > 0)
+    t_write(shell_input_data, shell_input_length);
+}
+
+static void cmd_cat(int argc, char **argv) {
+  char buffer[512];
+  struct vfs_file file;
+  uint32_t bytes_read;
+
+  if (argc == 1) {
+    print_input();
+    return;
+  }
+
+  for (int i = 1; i < argc; i++) {
+    char path[256];
+    resolve_path(shell_get_cwd(), argv[i], path);
+    if (!vfs_open(path, &file)) {
+      t_print_raw(argv[i]);
+      t_print(": not found\n");
+      continue;
+    }
+    while ((bytes_read = vfs_read(&file, buffer, sizeof(buffer))) > 0)
+      t_write(buffer, bytes_read);
+  }
+}
+
+static void cmd_grep(int argc, char **argv) {
+  const char *needle;
+  size_t line_start = 0;
+
+  if (argc < 2) {
+    t_print("usage: grep <text>\n");
+    return;
+  }
+  needle = argv[1];
+
+  for (size_t i = 0; i <= shell_input_length; i++) {
+    if (i == shell_input_length || shell_input_data[i] == '\n') {
+      size_t line_length = i - line_start;
+      char line[COMMAND_LINE_MAX];
+      size_t needle_length = k_strlen(needle);
+      int found = 0;
+
+      if (line_length >= sizeof(line))
+        line_length = sizeof(line) - 1;
+      for (size_t j = 0; j < line_length; j++)
+        line[j] = shell_input_data[line_start + j];
+      line[line_length] = '\0';
+
+      if (needle_length == 0)
+        found = 1;
+      for (size_t j = 0; !found && j + needle_length <= line_length; j++)
+        if (k_strncmp(line + j, needle, needle_length) == 0)
+          found = 1;
+
+      if (found) {
+        t_print_raw(line);
+        if (i < shell_input_length)
+          t_putchar('\n');
+      }
+      line_start = i + 1;
+    }
+  }
+}
+
+static void cmd_head(int argc, char **argv) {
+  int wanted = 10;
+  int lines = 0;
+
+  if (argc > 1)
+    wanted = 0;
+  if (argc > 1) {
+    for (size_t i = 0; argv[1][i] >= '0' && argv[1][i] <= '9'; i++)
+      wanted = wanted * 10 + (argv[1][i] - '0');
+  }
+
+  for (size_t i = 0; i < shell_input_length && lines < wanted; i++) {
+    t_putchar(shell_input_data[i]);
+    if (shell_input_data[i] == '\n')
+      lines++;
+  }
+}
+
+static void cmd_wc(int argc, char **argv) {
+  size_t lines = 0;
+  (void)argc;
+  (void)argv;
+
+  for (size_t i = 0; i < shell_input_length; i++)
+    if (shell_input_data[i] == '\n')
+      lines++;
+
+  print_uint(lines);
+  t_putchar(' ');
+  print_uint(shell_input_length);
+  t_putchar('\n');
+}
+
 static int command_name_is_echo(const char *line) {
   while (*line == ' ' || *line == '\t')
     line++;
@@ -1109,7 +1278,7 @@ static void script_execute(const char *path) {
     }
 }
 
-void commands_execute(char *line) {
+static int commands_execute_simple(char *line) {
   char *argv[CMD_MAX_ARGS];
   char expanded_line[COMMAND_LINE_MAX];
   char formatted_line[COMMAND_LINE_MAX];
@@ -1117,16 +1286,16 @@ void commands_execute(char *line) {
 
   if (command_name_is_echo(line)) {
     if (!expand_echo_substitutions(line, expanded_line, sizeof(expanded_line)))
-      return;
+      return 1;
     if (!format_echo_line(expanded_line, formatted_line, sizeof(formatted_line)))
-      return;
+      return 1;
     line = formatted_line;
   }
 
   argc = k_split(line, argv, CMD_MAX_ARGS);
 
   if (argc == 0)
-    return;
+    return 0;
 
   if (command_name_is_echo(line)) {
     for (int i = 1; i < argc; i++)
@@ -1136,7 +1305,7 @@ void commands_execute(char *line) {
   for (int i = 0; i < command_count; i++) {
     if (k_strcmp(argv[0], commands[i].name) == 0) {
       commands[i].run(argc, argv);
-      return;
+      return 0;
     }
   }
 
@@ -1149,9 +1318,265 @@ void commands_execute(char *line) {
 
   if (vfs_open(script_path, &test)) {
       script_execute(script_path);
-      return;
+      return 0;
   }
 
   t_print_raw(argv[0]);
   t_print(": command not found\n");
+  return 1;
+}
+
+static int shell_top_level_operator(const char *line, size_t *position,
+                                    size_t *length) {
+  int quote = 0;
+  int substitution_depth = 0;
+
+  for (size_t i = 0; line[i]; i++) {
+    if (line[i] == '"' && substitution_depth == 0)
+      quote = !quote;
+    if (quote)
+      continue;
+    if (line[i] == '$' && line[i + 1] == '(') {
+      substitution_depth++;
+      i++;
+      continue;
+    }
+    if (line[i] == ')' && substitution_depth > 0) {
+      substitution_depth--;
+      continue;
+    }
+    if (substitution_depth > 0)
+      continue;
+
+    if (line[i] == '&' && line[i + 1] == '&') {
+      *position = i;
+      *length = 2;
+      return 1;
+    }
+    if (line[i] == '&') {
+      *position = i;
+      *length = 1;
+      return 5;
+    }
+    if (line[i] == '|' && line[i + 1] == '|') {
+      *position = i;
+      *length = 2;
+      return 2;
+    }
+    if (line[i] == ';') {
+      *position = i;
+      *length = 1;
+      return 3;
+    }
+    if (line[i] == '<' && line[i + 1] == '<') {
+      *position = i;
+      *length = 2;
+      return 6;
+    }
+  }
+  return 0;
+}
+
+static int shell_execute_stage(char *line, const char *input, size_t input_length,
+                               char *output, size_t output_capacity,
+                               int show_output) {
+  char command[COMMAND_LINE_MAX];
+  char input_path[256] = "";
+  char output_path[256] = "";
+  size_t command_length = 0;
+  int append = 0;
+  int quote = 0;
+
+  for (size_t i = 0; line[i]; i++) {
+    if (line[i] == '"') {
+      quote = !quote;
+      command[command_length++] = line[i];
+      continue;
+    }
+    if (!quote && (line[i] == '>' || line[i] == '<')) {
+      char *path = line[i] == '>' ? output_path : input_path;
+      size_t path_length = 0;
+      if (line[i] == '>' && line[i + 1] == '>') {
+        append = 1;
+        i++;
+      }
+      while (line[i + 1] == ' ' || line[i + 1] == '\t')
+        i++;
+      while (line[i + 1] && line[i + 1] != ' ' && line[i + 1] != '\t' &&
+             line[i + 1] != '|' && line[i + 1] != ';' &&
+             line[i + 1] != '&' && path_length < 255)
+        path[path_length++] = line[++i];
+      path[path_length] = '\0';
+      continue;
+    }
+    if (command_length + 1 >= sizeof(command))
+      return 1;
+    command[command_length++] = line[i];
+  }
+  command[command_length] = '\0';
+
+  if (output_path[0] && !input_path[0]) {
+    char command_copy[COMMAND_LINE_MAX];
+    char *command_argv[CMD_MAX_ARGS];
+    int command_argc;
+
+    k_strcp(command_copy, command);
+    command_argc = k_split(command_copy, command_argv, CMD_MAX_ARGS);
+    if (command_argc == 1 && k_strcmp(command_argv[0], "cat") == 0) {
+      if (!shell_begin_input_redirect(output_path, append)) {
+        t_print_raw(output_path);
+        t_print(": could not open\n");
+        return 1;
+      }
+      return 0;
+    }
+  }
+
+  char file_input[SHELL_IO_BUFFER_SIZE];
+  if (input_path[0]) {
+    char resolved[256];
+    struct vfs_file file;
+    uint32_t read;
+    size_t total = 0;
+    resolve_path(shell_get_cwd(), input_path, resolved);
+    if (!vfs_open(resolved, &file)) {
+      t_print_raw(input_path);
+      t_print(": not found\n");
+      return 1;
+    }
+    while (total < sizeof(file_input) &&
+           (read = vfs_read(&file, file_input + total,
+                            sizeof(file_input) - total)) > 0)
+      total += read;
+    input = file_input;
+    input_length = total;
+  }
+
+  const char *old_input = shell_input_data;
+  size_t old_input_length = shell_input_length;
+  shell_input_data = input;
+  shell_input_length = input_length;
+  t_capture_begin(output, output_capacity);
+  int status = commands_execute_simple(command);
+  size_t output_length = t_capture_end();
+  shell_input_data = old_input;
+  shell_input_length = old_input_length;
+
+  if (output_path[0]) {
+    char resolved[256];
+    struct vfs_file file;
+    resolve_path(shell_get_cwd(), output_path, resolved);
+    if (!append && vfs_open(resolved, &file)) {
+      if (!vfs_remove(resolved)) {
+        t_print_raw(output_path);
+        t_print(": could not overwrite\n");
+        return 1;
+      }
+    }
+    if (!vfs_open(resolved, &file) &&
+        (!vfs_create(resolved) || !vfs_open(resolved, &file))) {
+      t_print_raw(output_path);
+      t_print(": could not open\n");
+      return 1;
+    }
+    if (append)
+      file.fat32.offset = file.fat32.size;
+    if (vfs_write(&file, output, output_length) != output_length)
+      return 1;
+    return status;
+  }
+
+  if (show_output)
+    t_write(output, output_length);
+  return status;
+}
+
+static int shell_execute_pipeline(char *line) {
+  char stage[COMMAND_LINE_MAX];
+  char input[SHELL_IO_BUFFER_SIZE];
+  char output[SHELL_IO_BUFFER_SIZE];
+  size_t input_length = 0;
+  size_t stage_length = 0;
+  int status = 0;
+  int quote = 0;
+  int substitution_depth = 0;
+
+  for (size_t i = 0;; i++) {
+    char character = line[i];
+    if (character == '"' && substitution_depth == 0)
+      quote = !quote;
+    if (!quote && character == '$' && line[i + 1] == '(') {
+      substitution_depth++;
+      if (stage_length + 2 >= sizeof(stage))
+        return 1;
+      stage[stage_length++] = line[i++];
+      stage[stage_length++] = line[i];
+      continue;
+    }
+    if (!quote && character == ')' && substitution_depth > 0)
+      substitution_depth--;
+
+    if ((character != '|' || quote || substitution_depth > 0) &&
+        character != '\0') {
+      if (stage_length + 1 >= sizeof(stage))
+        return 1;
+      stage[stage_length++] = character;
+      continue;
+    }
+
+    stage[stage_length] = '\0';
+    int last = character == '\0';
+    status = shell_execute_stage(stage, input, input_length, output,
+                                 sizeof(output), last);
+    if (!last) {
+      for (size_t j = 0; j < sizeof(input) && j < sizeof(output); j++)
+        input[j] = output[j];
+      input_length = k_strlen(input);
+      stage_length = 0;
+      continue;
+    }
+    return status;
+  }
+}
+
+void commands_execute(char *line) {
+  size_t position;
+  size_t length;
+  int operator_type = shell_top_level_operator(line, &position, &length);
+
+  if (operator_type) {
+    char left[COMMAND_LINE_MAX];
+    char right[COMMAND_LINE_MAX];
+    size_t left_length = position;
+    size_t right_length = k_strlen(line) - position - length;
+
+    if (left_length >= sizeof(left) || right_length >= sizeof(right))
+      return;
+    for (size_t i = 0; i < left_length; i++)
+      left[i] = line[i];
+    left[left_length] = '\0';
+    for (size_t i = 0; i < right_length; i++)
+      right[i] = line[position + length + i];
+    right[right_length] = '\0';
+
+    if (operator_type == 5) {
+      t_print("background execution is not supported\n");
+      return;
+    }
+    if (operator_type == 6) {
+      t_print("here-documents are not supported\n");
+      return;
+    }
+
+    int status = shell_execute_pipeline(left);
+    if (operator_type == 1 && status == 0)
+      commands_execute(right);
+    else if (operator_type == 2 && status != 0)
+      commands_execute(right);
+    else if (operator_type == 3)
+      commands_execute(right);
+    return;
+  }
+
+  shell_execute_pipeline(line);
 }

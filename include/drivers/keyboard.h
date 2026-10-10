@@ -11,6 +11,7 @@
 #define KEY_SCROLL_UP       0x107
 #define KEY_SCROLL_DOWN     0x108
 #define KEY_TAB             0x109
+#define KEY_EOF             0x10A
 
 void keyboard_handler(void);
 int keyboard_is_ready(void);
