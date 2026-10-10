@@ -16,6 +16,7 @@
 
 // Maximum arguments per command
 #define CMD_MAX_ARGS 16
+#define COMMAND_LINE_MAX 512
 
 typedef void (*command_func_t)(int argc, char **argv);
 
@@ -52,6 +53,7 @@ static void cmd_lost(int argc, char **argv);
 static void cmd_pwd(int argc, char **argv);
 static void cmd_cd(int argc, char **argv);
 static void cmd_tree(int argc, char **argv);
+static int expand_echo_substitutions(const char *line, char *expanded, size_t capacity);
 
 // Command table
 // leave description empty/NULL to not show on "help"
@@ -707,6 +709,87 @@ static void cmd_echo(int argc, char **argv) {
   t_putchar('\n');
 }
 
+static int command_name_is_echo(const char *line) {
+  while (*line == ' ' || *line == '\t')
+    line++;
+
+  return k_strncmp(line, "echo", 4) == 0 &&
+         (line[4] == '\0' || line[4] == ' ' || line[4] == '\t');
+}
+
+static int append_text(char *destination, size_t *length, size_t capacity,
+                       const char *source, size_t source_length) {
+  if (*length + source_length >= capacity)
+    return 0;
+
+  for (size_t i = 0; i < source_length; i++)
+    destination[(*length)++] = source[i];
+  destination[*length] = '\0';
+  return 1;
+}
+
+static int expand_echo_substitutions(const char *line, char *expanded,
+                                     size_t capacity) {
+  size_t output_length = 0;
+  size_t input_length = k_strlen(line);
+  size_t i = 0;
+
+  while (i < input_length) {
+    if (line[i] != '$' || i + 1 >= input_length || line[i + 1] != '(') {
+      if (!append_text(expanded, &output_length, capacity, line + i, 1))
+        return 0;
+      i++;
+      continue;
+    }
+
+    size_t command_start = i + 2;
+    size_t command_end = command_start;
+    int depth = 1;
+
+    while (command_end < input_length && depth > 0) {
+      if (line[command_end] == '$' && command_end + 1 < input_length &&
+          line[command_end + 1] == '(') {
+        depth++;
+        command_end++;
+      } else if (line[command_end] == ')') {
+        depth--;
+      }
+      command_end++;
+    }
+
+    if (depth != 0) {
+      if (!append_text(expanded, &output_length, capacity, line + i, 1))
+        return 0;
+      i++;
+      continue;
+    }
+
+    char command[COMMAND_LINE_MAX];
+    size_t command_length = (command_end - 1) - command_start;
+    if (command_length >= sizeof(command))
+      return 0;
+
+    for (size_t j = 0; j < command_length; j++)
+      command[j] = line[command_start + j];
+    command[command_length] = '\0';
+
+    char result[COMMAND_LINE_MAX];
+    t_capture_begin(result, sizeof(result));
+    commands_execute(command);
+    size_t result_length = t_capture_end();
+
+    while (result_length > 0 &&
+           (result[result_length - 1] == '\n' || result[result_length - 1] == '\r'))
+      result[--result_length] = '\0';
+
+    if (!append_text(expanded, &output_length, capacity, result, result_length))
+      return 0;
+    i = command_end;
+  }
+
+  return 1;
+}
+
 static void cmd_argc(int argc, char **argv) {
   char number[12];
   (void)argv;
@@ -968,7 +1051,16 @@ static void script_execute(const char *path) {
 
 void commands_execute(char *line) {
   char *argv[CMD_MAX_ARGS];
-  int argc = k_split(line, argv, CMD_MAX_ARGS);
+  char expanded_line[COMMAND_LINE_MAX];
+  int argc;
+
+  if (command_name_is_echo(line)) {
+    if (!expand_echo_substitutions(line, expanded_line, sizeof(expanded_line)))
+      return;
+    line = expanded_line;
+  }
+
+  argc = k_split(line, argv, CMD_MAX_ARGS);
 
   if (argc == 0)
     return;

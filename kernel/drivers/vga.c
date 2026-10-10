@@ -11,6 +11,17 @@
 size_t t_row;
 size_t t_column;
 uint8_t t_color;
+
+#define T_CAPTURE_MAX_DEPTH 4
+
+struct capture_state {
+  char *buffer;
+  size_t capacity;
+  size_t length;
+};
+
+static struct capture_state capture_stack[T_CAPTURE_MAX_DEPTH];
+static int capture_depth = 0;
 static uint16_t *t_buffer = (uint16_t *)VGA_MEMORY;
 static uint16_t t_screen[VGA_HEIGHT][VGA_WIDTH];
 static uint16_t t_scrollback[VGA_SCROLLBACK_HEIGHT][VGA_WIDTH];
@@ -155,7 +166,37 @@ void vga_update_cursor(size_t col, size_t row) {
   outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
+void t_capture_begin(char *buffer, size_t capacity) {
+  if (capture_depth >= T_CAPTURE_MAX_DEPTH || capacity == 0)
+    return;
+
+  capture_stack[capture_depth].buffer = buffer;
+  capture_stack[capture_depth].capacity = capacity;
+  capture_stack[capture_depth].length = 0;
+  buffer[0] = '\0';
+  capture_depth++;
+}
+
+size_t t_capture_end(void) {
+  struct capture_state *capture;
+
+  if (capture_depth == 0)
+    return 0;
+
+  capture = &capture_stack[capture_depth - 1];
+  capture->buffer[capture->length] = '\0';
+  capture_depth--;
+  return capture->length;
+}
+
 void t_putchar(char c) {
+  if (capture_depth > 0) {
+    struct capture_state *capture = &capture_stack[capture_depth - 1];
+    if (capture->length + 1 < capture->capacity)
+      capture->buffer[capture->length++] = c;
+    return;
+  }
+
   t_scroll_to_bottom();
 
   if (c == '\n') {
