@@ -17,6 +17,8 @@
 // Maximum arguments per command
 #define CMD_MAX_ARGS 16
 #define COMMAND_LINE_MAX 512
+#define ECHO_SPACE_MARKER '\x1D'
+#define ECHO_TAB_MARKER '\x1E'
 
 typedef void (*command_func_t)(int argc, char **argv);
 
@@ -54,6 +56,8 @@ static void cmd_pwd(int argc, char **argv);
 static void cmd_cd(int argc, char **argv);
 static void cmd_tree(int argc, char **argv);
 static int expand_echo_substitutions(const char *line, char *expanded, size_t capacity);
+static int format_echo_line(const char *line, char *formatted, size_t capacity);
+static void restore_echo_spaces(char *text);
 
 // Command table
 // leave description empty/NULL to not show on "help"
@@ -728,8 +732,7 @@ static int append_text(char *destination, size_t *length, size_t capacity,
   return 1;
 }
 
-static int expand_echo_substitutions(const char *line, char *expanded,
-                                     size_t capacity) {
+static int expand_echo_substitutions(const char *line, char *expanded, size_t capacity) {
   size_t output_length = 0;
   size_t input_length = k_strlen(line);
   size_t i = 0;
@@ -788,6 +791,63 @@ static int expand_echo_substitutions(const char *line, char *expanded,
   }
 
   return 1;
+}
+
+static char echo_escape_value(char escaped) {
+  switch (escaped) {
+  case 'n': return '\n';
+  case 'r': return '\r';
+  case 's': return ' ';
+  case 't': return '\t';
+  case '\\': return '\\';
+  case '"': return '"';
+  default: return '\0';
+  }
+}
+
+static int format_echo_line(const char *line, char *formatted, size_t capacity) {
+  size_t length = 0;
+  int in_quotes = 0;
+
+  for (size_t i = 0; line[i]; i++) {
+    char character = line[i];
+
+    if (character == '"') {
+      in_quotes = !in_quotes;
+      continue;
+    }
+
+    if (in_quotes && character == '\\' && line[i + 1]) {
+      char escaped = echo_escape_value(line[++i]);
+      if (escaped != '\0')
+        character = escaped;
+      else {
+        if (!append_text(formatted, &length, capacity, "\\", 1) ||
+            !append_text(formatted, &length, capacity, line + i, 1))
+          return 0;
+        continue;
+      }
+    }
+
+    if (in_quotes && character == ' ')
+      character = ECHO_SPACE_MARKER;
+    else if (in_quotes && character == '\t')
+      character = ECHO_TAB_MARKER;
+
+    if (!append_text(formatted, &length, capacity, &character, 1))
+      return 0;
+  }
+
+  return 1;
+}
+
+static void restore_echo_spaces(char *text) {
+  for (size_t i = 0; text[i]; i++) {
+    if (text[i] == ECHO_SPACE_MARKER)
+      text[i] = ' ';
+    else if (text[i] == ECHO_TAB_MARKER)
+      text[i] = '\t';
+  }
 }
 
 static void cmd_argc(int argc, char **argv) {
@@ -1052,18 +1112,26 @@ static void script_execute(const char *path) {
 void commands_execute(char *line) {
   char *argv[CMD_MAX_ARGS];
   char expanded_line[COMMAND_LINE_MAX];
+  char formatted_line[COMMAND_LINE_MAX];
   int argc;
 
   if (command_name_is_echo(line)) {
     if (!expand_echo_substitutions(line, expanded_line, sizeof(expanded_line)))
       return;
-    line = expanded_line;
+    if (!format_echo_line(expanded_line, formatted_line, sizeof(formatted_line)))
+      return;
+    line = formatted_line;
   }
 
   argc = k_split(line, argv, CMD_MAX_ARGS);
 
   if (argc == 0)
     return;
+
+  if (command_name_is_echo(line)) {
+    for (int i = 1; i < argc; i++)
+      restore_echo_spaces(argv[i]);
+  }
 
   for (int i = 0; i < command_count; i++) {
     if (k_strcmp(argv[0], commands[i].name) == 0) {
