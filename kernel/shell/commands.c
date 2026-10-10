@@ -822,7 +822,10 @@ static void cmd_grep(int argc, char **argv) {
     return;
   }
   needle = argv[1];
+  config_reload();
   configured_color = config_get("grep_color");
+  if (!configured_color)
+    configured_color = config_get("grep.match_color");
   color_code = 'e';
   if (configured_color && configured_color[0]) {
     color_code = configured_color[0] == '$' && configured_color[1]
@@ -1489,6 +1492,14 @@ static int shell_execute_stage(char *line, const char *input, size_t input_lengt
   size_t old_input_length = shell_input_length;
   shell_input_data = input;
   shell_input_length = input_length;
+
+  if (show_output && !output_path[0]) {
+    int status = commands_execute_simple(command);
+    shell_input_data = old_input;
+    shell_input_length = old_input_length;
+    return status;
+  }
+
   t_capture_begin(output, output_capacity);
   int status = commands_execute_simple(command);
   size_t output_length = t_capture_end();
