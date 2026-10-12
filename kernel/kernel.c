@@ -12,6 +12,9 @@
 #include "fs/vfs.h"
 #include "fs/first_boot.h"
 #include "fs/config.h"
+#ifdef GUI
+#include "drivers/fb.h"
+#endif
 
 static const char *old_boot_logo =
 " /$$        /$$$$$$   /$$$$$$  /$$$$$$$$        /$$$$$$   /$$$$$$ \n"
@@ -72,6 +75,11 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
 
   t_init();
   memory_init(multiboot_magic, multiboot_info_addr);
+#ifdef GUI
+  if (multiboot_magic != MULTIBOOT_BOOTLOADER_MAGIC ||
+      fb_init((multiboot_info_t *)(uintptr_t)multiboot_info_addr) != 0)
+    t_init();
+#endif
   ata_init();
   vfs_init();
 

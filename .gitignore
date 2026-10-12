@@ -5,6 +5,10 @@
 *.iso
 *.img
 obj/
+obj-gui/
+kernel.bin
+os.iso
+disk.img
 tools/mkdisk
 
 # debug files
