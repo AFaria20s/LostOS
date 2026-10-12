@@ -71,6 +71,12 @@ os.iso: kernel.bin boot/grub.cfg $(GRUB_CFG)
 
 iso: os.iso
 
+iso-vga:
+	$(MAKE) MODE=vga os.iso
+
+iso-gui:
+	$(MAKE) MODE=gui os.iso
+
 tools/mkdisk: tools/mkdisk.c
 	gcc tools/mkdisk.c -o tools/mkdisk
 
@@ -80,13 +86,17 @@ disk.img: tools/mkdisk
 clean:
 	rm -rf *.o *.bin *.iso isodir tools/mkdisk disk.img obj obj-gui
 
-run: os.iso disk.img
+run:
+	$(MAKE) run-vga
+
+run-vga:
+	$(MAKE) clean
+	$(MAKE) MODE=vga os.iso disk.img
 	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M
 
 run-gui:
-	$(MAKE) MODE=gui run-gui-build
-
-run-gui-build: os.iso disk.img
+	$(MAKE) clean
+	$(MAKE) MODE=gui os.iso disk.img
 	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M
 
 debug: os.iso disk.img
@@ -94,6 +104,6 @@ debug: os.iso disk.img
 	sleep 1
 	gdb kernel.bin -ex "set architecture i386" -ex "target remote localhost:1234"
 
-.PHONY: all iso run run-gui run-gui-build debug clean FORCE
+.PHONY: all iso iso-vga iso-gui run run-vga run-gui debug clean FORCE
 
 FORCE:
