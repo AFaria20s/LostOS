@@ -4,5 +4,6 @@
 int idt_init(void);
 int idt_is_ready(void);
 int idt_keyboard_irq_is_ready(void);
+int idt_mouse_irq_is_ready(void);
 
 #endif

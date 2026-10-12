@@ -39,11 +39,20 @@ KERNEL_C = \
 	kernel/fs/config.c
 ifeq ($(MODE),gui)
 KERNEL_C += kernel/drivers/fb.c
+KERNEL_C += kernel/drivers/mouse.c
+KERNEL_C += kernel/gui/gui.c
+KERNEL_C += kernel/gui/icons.c
 endif
 KERNEL_ASM = boot/boot.s boot/interrupt.s
+ifeq ($(MODE),gui)
+KERNEL_ASM += boot/mouse_interrupt.s
+endif
 LINKER = linker.ld
 KERNEL_OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(KERNEL_C))
 KERNEL_ASM_OBJS = $(OBJDIR)/boot.o $(OBJDIR)/interrupt.o
+ifeq ($(MODE),gui)
+KERNEL_ASM_OBJS += $(OBJDIR)/mouse_interrupt.o
+endif
 
 all: os.iso
 
@@ -56,6 +65,10 @@ $(OBJDIR)/boot.o: boot/boot.s
 	$(AS) $(ASFLAGS) $< -o $@
 
 $(OBJDIR)/interrupt.o: boot/interrupt.s
+	@mkdir -p $(dir $@)
+	$(AS) $(ASFLAGS) $< -o $@
+
+$(OBJDIR)/mouse_interrupt.o: boot/mouse_interrupt.s
 	@mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) $< -o $@
 

@@ -4,6 +4,9 @@
 #include "arch/io.h"
 #include "drivers/keyboard.h"
 #include "drivers/vga.h"
+#ifdef GUI
+#include "drivers/mouse.h"
+#endif
 
 #define PIC1_COMMAND 0x20
 #define PIC1_DATA 0x21
@@ -11,6 +14,9 @@
 #define PIC2_DATA 0xA1
 
 extern void keyboard_wrapper(void);
+#ifdef GUI
+extern void mouse_wrapper(void);
+#endif
 
 static uint8_t pic1_mask = 0xFF;
 static uint8_t pic2_mask = 0xFF;
@@ -36,8 +42,13 @@ void pic_init(void) {
   outb(PIC1_DATA, 0x01);
   outb(PIC2_DATA, 0x01);
 
+#ifdef GUI
+  // Enable keyboard, the cascade line, and PS/2 mouse IRQ12.
+  pic_set_masks(0xF9, 0xEF);
+#else
   // Leave only keyboard enabled (PIC mask)
   pic_set_masks(0xFD, 0xFF);
+#endif
 }
 
 // IDT entry structure
@@ -59,6 +70,7 @@ static struct idt_entry idt[256];
 static struct idt_ptr idtp;
 static int idt_ready = 0;
 static int keyboard_irq_ready = 0;
+static int mouse_irq_ready = 0;
 
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t selector,
                   uint8_t flags) {
@@ -93,6 +105,9 @@ int idt_init(void) {
 
   pic_init();
   idt_set_gate(0x21, (uint32_t)keyboard_wrapper, 0x08, 0x8E);
+#ifdef GUI
+  idt_set_gate(0x2C, (uint32_t)mouse_wrapper, 0x08, 0x8E);
+#endif
 
   __asm__ volatile("lidt %0" : : "m"(idtp) : "memory");
   __asm__ volatile("sidt %0" : "=m"(loaded_idt));
@@ -100,6 +115,14 @@ int idt_init(void) {
   keyboard_irq_ready = idt_gate_matches(0x21, (uint32_t)keyboard_wrapper,
                                         0x08, 0x8E) &&
                        (pic1_mask & 0x02) == 0;
+#ifdef GUI
+  mouse_irq_ready = idt_gate_matches(0x2C, (uint32_t)mouse_wrapper,
+                                     0x08, 0x8E) &&
+                    (pic2_mask & 0x10) == 0 &&
+                    (pic1_mask & 0x04) == 0;
+#else
+  mouse_irq_ready = 0;
+#endif
 
   idt_ready = loaded_idt.limit == idtp.limit &&
               loaded_idt.base == idtp.base &&
@@ -117,4 +140,8 @@ int idt_is_ready(void) {
 
 int idt_keyboard_irq_is_ready(void) {
   return keyboard_irq_ready;
+}
+
+int idt_mouse_irq_is_ready(void) {
+  return mouse_irq_ready;
 }

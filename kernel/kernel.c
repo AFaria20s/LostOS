@@ -14,6 +14,8 @@
 #include "fs/config.h"
 #ifdef GUI
 #include "drivers/fb.h"
+#include "drivers/mouse.h"
+#include "gui/gui.h"
 #endif
 
 static const char *old_boot_logo =
@@ -70,6 +72,12 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
   if (gdt_ok)
     paging_ok = paging_init();
 
+#ifdef GUI
+  int mouse_ok = 0;
+  if (gdt_ok && paging_ok)
+    mouse_ok = mouse_init() == 0;
+#endif
+
   if (gdt_ok && paging_ok)
     idt_ok = idt_init();
 
@@ -87,23 +95,18 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
   if (!framebuffer_ok)
     t_init();
   else {
-    fb_clear(0x00102040);
-    fb_fill_rect(100, 100, 200, 100, 0x00FF0000);
-    fb_fill_rect(350, 200, 200, 100, 0x0000FF00);
-
-    fb_fill_rect(600, 120, 160, 20, 0x00FFFF00);
-    fb_fill_rect(580, 140, 200, 20, 0x00FFFF00);
-    fb_fill_rect(560, 160, 240, 160, 0x00FFFF00);
-    fb_fill_rect(580, 320, 200, 20, 0x00FFFF00);
-    fb_fill_rect(600, 340, 160, 20, 0x00FFFF00);
-
-    fb_fill_rect(620, 190, 25, 35, 0x00000000);
-    fb_fill_rect(735, 190, 25, 35, 0x00000000);
-    fb_fill_rect(630, 270, 120, 20, 0x00000000);
-    fb_fill_rect(650, 290, 80, 20, 0x00000000);
-
-    for (;;)
-      __asm__ volatile("hlt");
+    gui_init();
+    gui_render();
+    for (;;) {
+      if (mouse_ok) {
+        /* IRQ12 consumes PS/2 bytes; polling concurrently loses packet sync. */
+        if (!idt_mouse_irq_is_ready())
+          mouse_poll();
+        if (mouse_has_changed())
+          gui_render();
+      }
+      __asm__ volatile("pause");
+    }
   }
 #endif
   ata_init();
