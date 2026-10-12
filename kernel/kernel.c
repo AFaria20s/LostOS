@@ -122,11 +122,25 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
       if (t_take_dirty())
         gui_render_full();
       if (mouse_ok) {
+        int pointer_changed;
+        int window_changed;
+
         /* IRQ12 consumes PS/2 bytes; polling concurrently loses packet sync. */
         if (!idt_mouse_irq_is_ready())
           mouse_poll();
-        if (mouse_has_changed())
-          gui_render();
+        pointer_changed = mouse_has_changed();
+        if (pointer_changed) {
+          window_changed = gui_handle_pointer(mouse_get_x(), mouse_get_y(),
+                                              mouse_get_buttons());
+          if (window_changed) {
+            if (window_changed == 2)
+              gui_render_damage();
+            else
+              gui_render_full();
+          }
+          else
+            gui_render();
+        }
       }
       __asm__ volatile("pause");
     }

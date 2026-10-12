@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "terminal/terminal.h"
 
 #define VGA_WIDTH  80
 #define VGA_HEIGHT 25
@@ -27,38 +28,12 @@ enum vga_color {
 };
 
 static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
-  return fg | bg << 4;
+  return terminal_color_pair((enum terminal_color)fg, (enum terminal_color)bg);
 }
 
 static inline uint16_t vga_entry(unsigned char uc, uint8_t color) {
-  return (uint16_t)uc | (uint16_t)color << 8;
+  return terminal_cell(uc, color);
 }
-
-extern size_t t_row;
-extern size_t t_column;
-extern uint8_t t_color;
-
-void t_putchar(char c);
-void t_putentryat(char c, uint8_t color, size_t x, size_t y);
-void t_init(void);
-void t_print(const char *data);
-void t_print_raw(const char *data);
-void t_write(const char *data, size_t size);
-void t_set_color_code(char code);
-void t_setcolor(uint8_t color);
-void t_scroll(void);
-void t_scroll_view_up(void);
-void t_scroll_view_down(void);
-void t_scroll_to_bottom(void);
-void t_print_padded(const char *text, int width);
-void t_force_redraw(void);
-void t_clear(void);
-uint16_t t_get_cell(size_t x, size_t y);
-int t_take_dirty(void);
-
-// Redirects terminal output to a caller-provided buffer until it is ended.
-void t_capture_begin(char *buffer, size_t capacity);
-size_t t_capture_end(void);
 
 // Controls the text cursor.
 void vga_enable_cursor(uint8_t cursor_start, uint8_t cursor_end);

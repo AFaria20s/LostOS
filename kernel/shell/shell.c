@@ -325,9 +325,9 @@ static void shell_screen_pos(int pos, size_t *col, size_t *row);
 static void shell_move_cursor_to(int pos);
 
 static void shell_ensure_input_visible(int len) {
-  size_t needed_row = prompt_row + (prompt_col + (size_t)len) / VGA_WIDTH;
+  size_t needed_row = prompt_row + (prompt_col + (size_t)len) / TERMINAL_WIDTH;
 
-  while (needed_row >= VGA_HEIGHT) {
+  while (needed_row >= TERMINAL_HEIGHT) {
     t_scroll();
     if (prompt_row > 0)
       prompt_row--;
@@ -361,9 +361,9 @@ static void shell_replace_input(const char *s) {
 }
 
 static void shell_screen_pos(int pos, size_t *col, size_t *row) {
-  size_t total = prompt_row * VGA_WIDTH + prompt_col + (size_t)pos;
-  *row = total / VGA_WIDTH;
-  *col = total % VGA_WIDTH;
+  size_t total = prompt_row * TERMINAL_WIDTH + prompt_col + (size_t)pos;
+  *row = total / TERMINAL_WIDTH;
+  *col = total % TERMINAL_WIDTH;
 }
 
 static void shell_move_cursor_to(int pos) {
