@@ -106,9 +106,21 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
   if (!framebuffer_ok)
     t_init();
   else {
+    vga_disable_cursor();
+    welcome_screen();
+    if (idt_ok)
+      shell_prompt();
+    else if (!paging_ok)
+      t_print("\n$cBoot stopped: paging is not ready.$f\n");
+    else
+      t_print("\n$cBoot stopped: interrupts are not ready.$f\n");
+
     gui_init();
-    gui_render();
+    gui_render_full();
+    (void)t_take_dirty();
     for (;;) {
+      if (t_take_dirty())
+        gui_render_full();
       if (mouse_ok) {
         /* IRQ12 consumes PS/2 bytes; polling concurrently loses packet sync. */
         if (!idt_mouse_irq_is_ready())

@@ -28,6 +28,7 @@ static uint16_t t_screen[VGA_HEIGHT][VGA_WIDTH];
 static uint16_t t_scrollback[VGA_SCROLLBACK_HEIGHT][VGA_WIDTH];
 static size_t t_scrollback_count = 0;
 static size_t t_view_offset = 0;
+static volatile int t_dirty = 1;
 
 static uint16_t t_blank_entry(void) {
   return vga_entry(' ', t_color);
@@ -73,6 +74,7 @@ void t_scroll_to_bottom(void) {
 
   t_view_offset = 0;
   t_render_view();
+  t_dirty = 1;
 }
 
 void t_init(void) {
@@ -85,6 +87,7 @@ void t_init(void) {
   t_scrollback_count = 0;
   t_view_offset = 0;
   t_render_view();
+  t_dirty = 1;
 }
 
 void t_setcolor(uint8_t color) { t_color = color; }
@@ -96,6 +99,7 @@ void t_putentryat(char c, uint8_t color, size_t x, size_t y) {
   t_scroll_to_bottom();
   t_screen[y][x] = vga_entry(c, color);
   t_buffer[y * VGA_WIDTH + x] = t_screen[y][x];
+  t_dirty = 1;
 }
 
 void t_scroll(void) {
@@ -116,6 +120,7 @@ void t_scroll(void) {
 
   if (t_view_offset == 0)
     t_render_view();
+  t_dirty = 1;
 }
 
 void t_scroll_view_up(void) {
@@ -124,6 +129,7 @@ void t_scroll_view_up(void) {
 
   t_view_offset++;
   t_render_view();
+  t_dirty = 1;
 }
 
 void t_scroll_view_down(void) {
@@ -132,6 +138,7 @@ void t_scroll_view_down(void) {
 
   t_view_offset--;
   t_render_view();
+  t_dirty = 1;
 }
 
 void t_clear(void) {
@@ -143,6 +150,7 @@ void t_clear(void) {
   t_scrollback_count = 0;
   t_view_offset = 0;
   t_render_view();
+  t_dirty = 1;
 }
 
 void vga_enable_cursor(uint8_t cursor_start, uint8_t cursor_end) {
@@ -165,6 +173,7 @@ void vga_update_cursor(size_t col, size_t row) {
   outb(0x3D5, (uint8_t)(pos & 0xFF));
   outb(0x3D4, 0x0E);
   outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+  t_dirty = 1;
 }
 
 void t_capture_begin(char *buffer, size_t capacity) {
@@ -206,6 +215,7 @@ void t_putchar(char c) {
       t_scroll();
     else
       vga_update_cursor(t_column, t_row);
+    t_dirty = 1;
     return;
   }
 
@@ -331,4 +341,27 @@ void t_print(const char *data) {
 
 void t_force_redraw(void) {
     t_render_view();
+}
+
+uint16_t t_get_cell(size_t x, size_t y) {
+  size_t total_lines;
+  size_t start = 0;
+  size_t line;
+
+  if (x >= VGA_WIDTH || y >= VGA_HEIGHT)
+    return 0;
+
+  total_lines = t_scrollback_count + VGA_HEIGHT;
+  if (total_lines > VGA_HEIGHT + t_view_offset)
+    start = total_lines - VGA_HEIGHT - t_view_offset;
+  line = start + y;
+  if (line < t_scrollback_count)
+    return t_scrollback[line][x];
+  return t_screen[line - t_scrollback_count][x];
+}
+
+int t_take_dirty(void) {
+  int dirty = t_dirty;
+  t_dirty = 0;
+  return dirty;
 }

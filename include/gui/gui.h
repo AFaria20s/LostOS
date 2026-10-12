@@ -3,5 +3,6 @@
 
 void gui_init(void);
 void gui_render(void);
+void gui_render_full(void);
 
 #endif
