@@ -1,6 +1,9 @@
 .set ALIGN,    1<<0
 .set MEMINFO,  1<<1
 .set FLAGS,    ALIGN | MEMINFO
+.ifdef GUI
+.set FLAGS,    FLAGS | (1<<2)
+.endif
 .set MAGIC,    0x1BADB002
 .set CHECKSUM, -(MAGIC + FLAGS)
 
@@ -11,6 +14,17 @@
 .long MAGIC
 .long FLAGS
 .long CHECKSUM
+.ifdef GUI
+.long 0
+.long 0
+.long 0
+.long 0
+.long 0
+.long 0
+.long 800
+.long 600
+.long 32
+.endif
 
 .section .bss
 .align 16

@@ -2,6 +2,18 @@ CC = gcc
 AS = as
 CPPFLAGS = -Iinclude
 CFLAGS = -m32 -nostdlib -ffreestanding -fno-stack-protector -fno-pic -Wall -g
+MODE ?= vga
+
+ifeq ($(MODE),gui)
+CPPFLAGS += -DGUI
+ASFLAGS = --32 --defsym GUI=1
+OBJDIR = obj-gui
+GRUB_CFG = boot/grub-gui.cfg
+else
+ASFLAGS = --32
+OBJDIR = obj
+GRUB_CFG = boot/grub.cfg
+endif
 
 KERNEL_C = \
 	kernel/kernel.c \
@@ -25,10 +37,13 @@ KERNEL_C = \
 	kernel/lib/path.c \
 	kernel/fs/first_boot.c \
 	kernel/fs/config.c
+ifeq ($(MODE),gui)
+KERNEL_C += kernel/drivers/fb.c
+endif
 KERNEL_ASM = boot/boot.s boot/interrupt.s
 LINKER = linker.ld
-OBJDIR = obj
 KERNEL_OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(KERNEL_C))
+KERNEL_ASM_OBJS = $(OBJDIR)/boot.o $(OBJDIR)/interrupt.o
 
 all: os.iso
 
@@ -36,16 +51,25 @@ $(OBJDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-kernel.bin: $(KERNEL_ASM) $(KERNEL_OBJS)
-	$(AS) --32 boot/boot.s -o boot.o
-	$(AS) --32 boot/interrupt.s -o interrupt.o
-	ld -m elf_i386 -T linker.ld -o kernel.bin boot.o interrupt.o $(KERNEL_OBJS)
+$(OBJDIR)/boot.o: boot/boot.s
+	@mkdir -p $(dir $@)
+	$(AS) $(ASFLAGS) $< -o $@
 
-os.iso: kernel.bin
+$(OBJDIR)/interrupt.o: boot/interrupt.s
+	@mkdir -p $(dir $@)
+	$(AS) $(ASFLAGS) $< -o $@
+
+kernel.bin: $(KERNEL_ASM) $(KERNEL_ASM_OBJS) $(KERNEL_OBJS) FORCE
+	ld -m elf_i386 -T linker.ld -o kernel.bin $(KERNEL_ASM_OBJS) $(KERNEL_OBJS)
+
+os.iso: kernel.bin boot/grub.cfg $(GRUB_CFG)
 	mkdir -p isodir/boot/grub
 	cp kernel.bin isodir/boot/kernel.bin
 	cp boot/grub.cfg isodir/boot/grub/grub.cfg
+	if [ "$(MODE)" = "gui" ]; then cp $(GRUB_CFG) isodir/boot/grub/grub.cfg; fi
 	grub-mkrescue -o os.iso isodir
+
+iso: os.iso
 
 tools/mkdisk: tools/mkdisk.c
 	gcc tools/mkdisk.c -o tools/mkdisk
@@ -54,12 +78,22 @@ disk.img: tools/mkdisk
 	./tools/mkdisk
 
 clean:
-	rm -rf *.o *.bin *.iso isodir tools/mkdisk disk.img $(OBJDIR)
+	rm -rf *.o *.bin *.iso isodir tools/mkdisk disk.img obj obj-gui
 
 run: os.iso disk.img
+	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M
+
+run-gui:
+	$(MAKE) MODE=gui run-gui-build
+
+run-gui-build: os.iso disk.img
 	qemu-system-x86_64 -boot d -cdrom os.iso -drive file=disk.img,format=raw -m 512M
 
 debug: os.iso disk.img
 	qemu-system-x86_64 -s -S -cdrom os.iso -drive file=disk.img,format=raw -m 512M &
 	sleep 1
 	gdb kernel.bin -ex "set architecture i386" -ex "target remote localhost:1234"
+
+.PHONY: all iso run run-gui run-gui-build debug clean FORCE
+
+FORCE:
