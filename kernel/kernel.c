@@ -76,8 +76,15 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
   t_init();
   memory_init(multiboot_magic, multiboot_info_addr);
 #ifdef GUI
-  if (multiboot_magic != MULTIBOOT_BOOTLOADER_MAGIC ||
-      fb_init((multiboot_info_t *)(uintptr_t)multiboot_info_addr) != 0)
+  int framebuffer_ok = 0;
+
+  if (multiboot_magic == MULTIBOOT_BOOTLOADER_MAGIC &&
+      fb_init((multiboot_info_t *)(uintptr_t)multiboot_info_addr) == 0)
+    framebuffer_ok = paging_map_range(
+      (uint32_t)fb_get_address(), fb_get_pitch() * fb_get_height(),
+      PAGING_PAGE_PRESENT | PAGING_PAGE_WRITABLE) == 0;
+
+  if (!framebuffer_ok)
     t_init();
 #endif
   ata_init();

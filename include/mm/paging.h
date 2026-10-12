@@ -5,6 +5,8 @@
 #include <stdint.h>
 
 #define PAGING_PAGE_SIZE 4096
+#define PAGING_PAGE_PRESENT 0x001
+#define PAGING_PAGE_WRITABLE 0x002
 
 struct paging_stats {
   uintptr_t directory_addr;
@@ -16,6 +18,7 @@ struct paging_stats {
 };
 
 int paging_init(void);
+int paging_map_range(uint32_t phys, uint32_t size, uint32_t flags);
 int paging_is_enabled(void);
 int paging_test(void);
 void paging_get_stats(struct paging_stats *stats);
