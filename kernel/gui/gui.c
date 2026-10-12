@@ -4,11 +4,9 @@
 #include "drivers/mouse.h"
 #include "gui/gui.h"
 #include "gui/icons.h"
+#include "gui/theme.h"
+#include "mm/memory.h"
 
-#define GUI_BACKGROUND 0x0009080A
-#define GUI_SHADOW      0x00000000
-#define GUI_LIGHT       0x00FFE7A6
-#define GUI_ACCENT      0x00D99A2B
 #define GUI_CURSOR_SCALE 1
 
 static uint32_t previous_cursor_x;
@@ -40,7 +38,8 @@ static void gui_draw_desktop_region(uint32_t x, uint32_t y, uint32_t width,
   uint32_t screen_width = fb_get_width();
   uint32_t screen_height = fb_get_height();
 
-  gui_fill_clipped(0, 0, screen_width, screen_height, GUI_BACKGROUND,
+  gui_fill_clipped(0, 0, screen_width, screen_height,
+                   gui_theme_default.background,
                    x, y, width, height);
 }
 
@@ -57,8 +56,16 @@ static void gui_clamp_cursor(uint32_t *x, uint32_t *y) {
 }
 
 void gui_init(void) {
+  uint64_t bytes = (uint64_t)fb_get_pitch() * fb_get_height();
+  void *backbuffer = 0;
+
   mouse_set_bounds(fb_get_width(), fb_get_height());
   cursor_drawn = 0;
+  if (bytes <= 0xFFFFFFFFU) {
+    backbuffer = kmalloc((size_t)bytes);
+    if (backbuffer && fb_set_backbuffer(backbuffer, fb_get_pitch()) != 0)
+      backbuffer = 0;
+  }
 }
 
 void gui_render(void) {
@@ -74,7 +81,19 @@ void gui_render(void) {
     gui_draw_desktop_region(0, 0, fb_get_width(), fb_get_height());
 
   gui_draw_icon(&gui_icon_cursor, cursor_x, cursor_y, GUI_CURSOR_SCALE,
-                GUI_SHADOW, GUI_LIGHT, GUI_ACCENT);
+                gui_theme_default.shadow, gui_theme_default.highlight,
+                gui_theme_default.accent);
+  if (fb_uses_backbuffer()) {
+    if (cursor_drawn)
+      fb_present_rect(previous_cursor_x, previous_cursor_y,
+                      gui_icon_cursor.width * GUI_CURSOR_SCALE,
+                      gui_icon_cursor.height * GUI_CURSOR_SCALE);
+    else
+      fb_present();
+    fb_present_rect(cursor_x, cursor_y,
+                    gui_icon_cursor.width * GUI_CURSOR_SCALE,
+                    gui_icon_cursor.height * GUI_CURSOR_SCALE);
+  }
   previous_cursor_x = cursor_x;
   previous_cursor_y = cursor_y;
   cursor_drawn = 1;

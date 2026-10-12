@@ -42,6 +42,8 @@ KERNEL_C += kernel/drivers/fb.c
 KERNEL_C += kernel/drivers/mouse.c
 KERNEL_C += kernel/gui/gui.c
 KERNEL_C += kernel/gui/icons.c
+KERNEL_C += kernel/gui/theme.c
+KERNEL_C += kernel/gui/font.c
 endif
 KERNEL_ASM = boot/boot.s boot/interrupt.s
 ifeq ($(MODE),gui)

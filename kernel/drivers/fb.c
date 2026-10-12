@@ -4,8 +4,11 @@
 
 static struct framebuffer framebuffer;
 static int framebuffer_ready;
+static uintptr_t draw_address;
+static uint32_t draw_pitch;
+static int backbuffer_enabled;
 
-// Real channel layout comes from multiboot color fields, 32 bpp BGRX is common
+// The configured GRUB mode uses 32-bit 0x00RRGGBB pixels.
 
 int fb_init(multiboot_info_t *mbi) {
   uint32_t address;
@@ -25,6 +28,9 @@ int fb_init(multiboot_info_t *mbi) {
   framebuffer.width = mbi->framebuffer_width;
   framebuffer.height = mbi->framebuffer_height;
   framebuffer.bpp = mbi->framebuffer_bpp;
+  draw_address = framebuffer.address;
+  draw_pitch = framebuffer.pitch;
+  backbuffer_enabled = 0;
   framebuffer_ready = 1;
   return 0;
 }
@@ -55,8 +61,8 @@ void fb_put_pixel(uint32_t x, uint32_t y, uint32_t color) {
   if (!framebuffer_ready || x >= framebuffer.width || y >= framebuffer.height)
     return;
 
-  pixel = (volatile uint32_t *)(framebuffer.address +
-                                y * framebuffer.pitch +
+  pixel = (volatile uint32_t *)(draw_address +
+                                y * draw_pitch +
                                 x * (framebuffer.bpp / 8));
   *pixel = color;
 }
@@ -88,4 +94,52 @@ void fb_fill_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
   for (uint32_t row = 0; row < clipped_height; row++)
     for (uint32_t column = 0; column < clipped_width; column++)
       fb_put_pixel(x + column, y + row, color);
+}
+
+int fb_set_backbuffer(void *buffer, uint32_t pitch) {
+  if (!framebuffer_ready)
+    return -1;
+
+  if (!buffer) {
+    draw_address = framebuffer.address;
+    draw_pitch = framebuffer.pitch;
+    backbuffer_enabled = 0;
+    return 0;
+  }
+  if (pitch < framebuffer.pitch)
+    return -1;
+
+  draw_address = (uintptr_t)buffer;
+  draw_pitch = pitch;
+  backbuffer_enabled = 1;
+  return 0;
+}
+
+int fb_uses_backbuffer(void) {
+  return backbuffer_enabled;
+}
+
+void fb_present_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+  uint32_t right;
+  uint32_t bottom;
+
+  if (!framebuffer_ready || !backbuffer_enabled || x >= framebuffer.width ||
+      y >= framebuffer.height)
+    return;
+
+  right = width > framebuffer.width - x ? framebuffer.width : x + width;
+  bottom = height > framebuffer.height - y ? framebuffer.height : y + height;
+  for (uint32_t row = y; row < bottom; row++) {
+    const uint32_t *source = (const uint32_t *)(draw_address + row * draw_pitch +
+                                                x * sizeof(uint32_t));
+    volatile uint32_t *target = (volatile uint32_t *)(framebuffer.address +
+                                                       row * framebuffer.pitch +
+                                                       x * sizeof(uint32_t));
+    for (uint32_t column = x; column < right; column++)
+      *target++ = *source++;
+  }
+}
+
+void fb_present(void) {
+  fb_present_rect(0, 0, framebuffer.width, framebuffer.height);
 }

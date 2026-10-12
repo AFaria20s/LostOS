@@ -23,5 +23,9 @@ void fb_put_pixel(uint32_t x, uint32_t y, uint32_t color);
 void fb_clear(uint32_t color);
 void fb_fill_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
                   uint32_t color);
+int fb_set_backbuffer(void *buffer, uint32_t pitch);
+int fb_uses_backbuffer(void);
+void fb_present(void);
+void fb_present_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
 #endif

@@ -78,11 +78,22 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
     mouse_ok = mouse_init() == 0;
 #endif
 
+  t_init();
+  memory_init(multiboot_magic, multiboot_info_addr);
+  ata_init();
+  vfs_init();
+
+  if (vfs_is_ready()) {
+    first_boot_setup();
+    shell_set_cwd("/home");
+    shell_history_init();
+  }
+
+  config_init();
+
   if (gdt_ok && paging_ok)
     idt_ok = idt_init();
 
-  t_init();
-  memory_init(multiboot_magic, multiboot_info_addr);
 #ifdef GUI
   int framebuffer_ok = 0;
 
@@ -109,16 +120,6 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
     }
   }
 #endif
-  ata_init();
-  vfs_init();
-
-  if(vfs_is_ready()) {
-    first_boot_setup();
-    shell_set_cwd("/home");
-    shell_history_init();
-  }
-
-  config_init();
 
   vga_enable_cursor(14, 15);
   welcome_screen();

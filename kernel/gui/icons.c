@@ -1,21 +1,6 @@
 #include "drivers/fb.h"
 #include "gui/icons.h"
-
-GUI_DEFINE_ICON(gui_icon_cursor, 11,
-  ".....#.....",
-  "....#+#....",
-  "...#@@@#...",
-  "..#@@@@@#..",
-  ".#@@@@@@@#.",
-  "#@@@@@@@@@#",
-  ".##@@@@@##.",
-  "...#@@@#...",
-  "...#@@@#...",
-  "...#@@@#...",
-  "...#@@@#...",
-  "..#@@@@@#..",
-  "...#####..."
-);
+#include "gui/icon_data.h"
 
 void gui_draw_icon(const struct gui_icon *icon, uint32_t x, uint32_t y,
                    uint32_t scale, uint32_t shadow, uint32_t light,
