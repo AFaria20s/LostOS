@@ -5,6 +5,8 @@
 static struct framebuffer framebuffer;
 static int framebuffer_ready;
 
+// Real channel layout comes from multiboot color fields, 32 bpp BGRX is common
+
 int fb_init(multiboot_info_t *mbi) {
   uint32_t address;
 
@@ -45,4 +47,45 @@ uint32_t fb_get_height(void) {
 
 uint8_t fb_get_bpp(void) {
   return framebuffer_ready ? framebuffer.bpp : 0;
+}
+
+void fb_put_pixel(uint32_t x, uint32_t y, uint32_t color) {
+  volatile uint32_t *pixel;
+
+  if (!framebuffer_ready || x >= framebuffer.width || y >= framebuffer.height)
+    return;
+
+  pixel = (volatile uint32_t *)(framebuffer.address +
+                                y * framebuffer.pitch +
+                                x * (framebuffer.bpp / 8));
+  *pixel = color;
+}
+
+void fb_clear(uint32_t color) {
+  fb_fill_rect(0, 0, framebuffer.width, framebuffer.height, color);
+}
+
+void fb_fill_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
+                  uint32_t color) {
+  uint64_t right;
+  uint64_t bottom;
+  uint32_t clipped_width;
+  uint32_t clipped_height;
+
+  if (!framebuffer_ready || x >= framebuffer.width || y >= framebuffer.height)
+    return;
+
+  right = (uint64_t)x + width;
+  bottom = (uint64_t)y + height;
+  if (right > framebuffer.width)
+    right = framebuffer.width;
+  if (bottom > framebuffer.height)
+    bottom = framebuffer.height;
+
+  clipped_width = (uint32_t)right - x;
+  clipped_height = (uint32_t)bottom - y;
+
+  for (uint32_t row = 0; row < clipped_height; row++)
+    for (uint32_t column = 0; column < clipped_width; column++)
+      fb_put_pixel(x + column, y + row, color);
 }
