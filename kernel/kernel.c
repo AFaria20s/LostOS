@@ -119,6 +119,8 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info_addr) {
     gui_render_full();
     (void)t_take_dirty();
     for (;;) {
+      if (gui_tick())
+        gui_render_full();
       if (t_take_dirty())
         gui_render_full();
       if (mouse_ok) {

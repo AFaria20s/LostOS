@@ -2,6 +2,7 @@
 
 #include "drivers/fb.h"
 #include "drivers/mouse.h"
+#include "drivers/rtc.h"
 #include "gui/font.h"
 #include "gui/gui.h"
 #include "gui/icons.h"
@@ -18,6 +19,7 @@
 #define GUI_RESIZE_HANDLE_SIZE 14
 #define GUI_WINDOW_MIN_WIDTH 280
 #define GUI_WINDOW_MIN_HEIGHT 180
+#define GUI_TERMINAL_DEFAULT_WIDTH 600
 
 static uint32_t previous_cursor_x;
 static uint32_t previous_cursor_y;
@@ -47,6 +49,8 @@ static uint32_t damage_x;
 static uint32_t damage_y;
 static uint32_t damage_width;
 static uint32_t damage_height;
+static uint8_t displayed_second = 0xFF;
+static uint32_t clock_poll_count;
 
 static uint32_t gui_terminal_min_width(void) {
   return GUI_WINDOW_MIN_WIDTH;
@@ -64,6 +68,9 @@ struct gui_terminal_layout {
   uint32_t text_x;
   uint32_t text_y;
 };
+
+static void gui_draw_cat(uint32_t clip_x, uint32_t clip_y,
+                         uint32_t clip_width, uint32_t clip_height);
 
 static void gui_fill_clipped(uint32_t x, uint32_t y, uint32_t width,
                              uint32_t height, uint32_t color,
@@ -93,6 +100,70 @@ static void gui_draw_desktop_region(uint32_t x, uint32_t y, uint32_t width,
   gui_fill_clipped(0, 0, screen_width, screen_height,
                    gui_theme_default.background,
                    x, y, width, height);
+  //gui_draw_background_icon(x, y, width, height);
+}
+
+static void gui_draw_background_icon(uint32_t clip_x, uint32_t clip_y,
+                         uint32_t clip_width, uint32_t clip_height) {
+  static const char *const pixels[] = {
+    "..............+++++++++..............",
+    "...........++#########++...........",
+    ".........++#############++.........",
+    "........+#################+........",
+    ".......+###################+.......",
+    "......+#####################+......",
+    ".....+#######################.....",
+    "....+#########+++++###########+....",
+    "...+########+@@@@@+###########+...",
+    "...+########+@@@@@+###########+...",
+    "..+#########+@@@@@+############+..",
+    "..+##########+++++#############+..",
+    ".+###############################+.",
+    ".+###########+######+############+.",
+    ".+###########+######+############+.",
+    ".+############++++++#############+.",
+    "..+#############################+..",
+    "..+#############################+..",
+    "...+############################+...",
+    "...+############################+...",
+    "....+###########################+....",
+    ".....+#########################+.....",
+    "......+########################+......",
+    ".......+######################+.......",
+    "........+#####################+........",
+    ".........+###################+.........",
+    "..........+#################+..........",
+    "...........+###############+...........",
+    "............+#############+............",
+    ".............+###########+.............",
+    "..............+#########+..............",
+    "...............+#######+...............",
+    "................+#####+................",
+    ".................+###+.................",
+    "..................+++..................",
+    ".........................................",
+    ".................++++....................",
+    ".................+##+...................",
+    ".................+##+...................",
+    ".................+##+..................."
+  };
+  uint32_t unit = 4;
+  uint32_t sprite_width = 41;
+  uint32_t origin_x = fb_get_width() > sprite_width * unit + 24 ?
+                      fb_get_width() - sprite_width * unit - 24 : 0;
+  uint32_t origin_y = 92;
+
+  for (uint32_t row = 0; row < sizeof(pixels) / sizeof(pixels[0]); row++)
+    for (uint32_t column = 0; pixels[row][column]; column++) {
+      uint32_t color;
+      if (pixels[row][column] == '.')
+        continue;
+      color = pixels[row][column] == '@' ? 0x00191209 :
+              pixels[row][column] == '+' ? 0x007A7A7A : 0x00D8D8D8;
+      gui_fill_clipped(origin_x + column * unit, origin_y + row * unit,
+                       unit, unit, color, clip_x, clip_y, clip_width,
+                       clip_height);
+    }
 }
 
 static struct gui_terminal_layout gui_terminal_layout(void) {
@@ -209,14 +280,50 @@ static void gui_draw_launcher_region(uint32_t clip_x, uint32_t clip_y,
                    clip_height);
   gui_fill_clipped(8, launcher_y + 6, 76, 18, gui_theme_default.border,
                    clip_x, clip_y, clip_width, clip_height);
-  gui_draw_text(16, launcher_y + 11, "Apps", 1, gui_theme_default.text);
+  gui_fill_clipped(10, launcher_y + 8, 72, 14, gui_theme_default.background,
+                   clip_x, clip_y, clip_width, clip_height);
+  gui_draw_text(16, launcher_y + 11, "Apps", 1, gui_theme_default.highlight);
+  {
+    struct rtc_time now;
+    char clock[] = "00:00 00/00/2000";
+    uint32_t clock_width;
+
+    rtc_read(&now);
+    now.hour = (uint8_t)((now.hour + RTC_LOCAL_UTC_OFFSET_HOURS) % 24);
+    clock[0] = (char)('0' + now.hour / 10);
+    clock[1] = (char)('0' + now.hour % 10);
+    clock[3] = (char)('0' + now.minute / 10);
+    clock[4] = (char)('0' + now.minute % 10);
+    clock[6] = (char)('0' + now.day / 10);
+    clock[7] = (char)('0' + now.day % 10);
+    clock[9] = (char)('0' + now.month / 10);
+    clock[10] = (char)('0' + now.month % 10);
+    clock[14] = (char)('0' + now.year / 10);
+    clock[15] = (char)('0' + now.year % 10);
+    clock_width = gui_text_width(clock, 1);
+    if (fb_get_width() > clock_width + 16)
+      gui_draw_text(fb_get_width() - clock_width - 12, launcher_y + 11,
+                    clock, 1, gui_theme_default.text_muted);
+  }
   if (start_menu_open) {
-    gui_fill_clipped(8, launcher_y - 58, 164, 54, gui_theme_default.border,
+    gui_fill_clipped(8, launcher_y - 116, 236, 112, gui_theme_default.border,
                      clip_x, clip_y, clip_width, clip_height);
-    gui_fill_clipped(10, launcher_y - 56, 160, 50, gui_theme_default.surface,
+    gui_fill_clipped(10, launcher_y - 114, 232, 108, gui_theme_default.surface,
                      clip_x, clip_y, clip_width, clip_height);
-    gui_draw_text(20, launcher_y - 42, "Terminal", 1,
+    gui_draw_text(20, launcher_y - 102, "Applications", 1,
                   gui_theme_default.highlight);
+    gui_fill_clipped(18, launcher_y - 82, 216, 50, gui_theme_default.background,
+                     clip_x, clip_y, clip_width, clip_height);
+    gui_fill_clipped(22, launcher_y - 78, 34, 34, gui_theme_default.border,
+                     clip_x, clip_y, clip_width, clip_height);
+    gui_fill_clipped(25, launcher_y - 75, 28, 22, gui_theme_default.accent,
+                     clip_x, clip_y, clip_width, clip_height);
+    gui_fill_clipped(28, launcher_y - 72, 22, 16, gui_theme_default.background,
+                     clip_x, clip_y, clip_width, clip_height);
+    gui_draw_text(66, launcher_y - 72, "Terminal", 1,
+                  gui_theme_default.text);
+    gui_draw_text(66, launcher_y - 58, "Command workspace", 1,
+                  gui_theme_default.text_muted);
   }
 }
 
@@ -288,13 +395,13 @@ void gui_init(void) {
 
   mouse_set_bounds(fb_get_width(), fb_get_height());
   cursor_drawn = 0;
-  terminal_window.width = TERMINAL_WIDTH * (GUI_FONT_WIDTH + 1) +
-                          GUI_TERMINAL_PADDING * 2;
+  terminal_window.width = fb_get_width() > GUI_TERMINAL_DEFAULT_WIDTH + 32 ?
+                          GUI_TERMINAL_DEFAULT_WIDTH :
+                          fb_get_width() - 16;
   terminal_window.height = TERMINAL_HEIGHT *
                            (GUI_FONT_HEIGHT + GUI_TERMINAL_LINE_GAP) +
                            GUI_TERMINAL_PADDING * 2 + GUI_TERMINAL_TITLE_HEIGHT;
-  terminal_window.x = fb_get_width() > terminal_window.width ?
-                      (fb_get_width() - terminal_window.width) / 2 : 0;
+  terminal_window.x = fb_get_width() > terminal_window.width + 16 ? 16 : 0;
   terminal_window.y = 56;
   terminal_window.visible = 1;
   terminal_window.maximized = 0;
@@ -302,11 +409,26 @@ void gui_init(void) {
   start_menu_open = 0;
   dragging_window = 0;
   resizing_window = 0;
+  clock_poll_count = 0;
+  displayed_second = 0xFF;
   if (bytes <= 0xFFFFFFFFU) {
     backbuffer = kmalloc((size_t)bytes);
     if (backbuffer && fb_set_backbuffer(backbuffer, fb_get_pitch()) != 0)
       backbuffer = 0;
   }
+}
+
+int gui_tick(void) {
+  struct rtc_time now;
+
+  if (++clock_poll_count < 1000000)
+    return 0;
+  clock_poll_count = 0;
+  rtc_read(&now);
+  if (now.second == displayed_second)
+    return 0;
+  displayed_second = now.second;
+  return 1;
 }
 
 int gui_handle_pointer(uint32_t x, uint32_t y, uint8_t buttons) {
@@ -360,7 +482,7 @@ int gui_handle_pointer(uint32_t x, uint32_t y, uint8_t buttons) {
     start_menu_open = !start_menu_open;
     changed = 1;
   } else if (left_pressed && start_menu_open &&
-             gui_point_in(x, y, 10, launcher_y - 56, 160, 50)) {
+             gui_point_in(x, y, 18, launcher_y - 82, 216, 50)) {
     terminal_window.visible = 1;
     start_menu_open = 0;
     changed = 1;
