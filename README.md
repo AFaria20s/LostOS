@@ -21,11 +21,13 @@ LostOS is still under active development. It is meant for learning and experimen
 
 ## Screenshots
 
-![Boot screen](/docs/screenshots/boot.png)
+### VGA mode
 
-![Command examples](/docs/screenshots/shell.png)
+![VGA boot screen](/docs/screenshots/boot.png)
 
-![Lost text editor](/docs/screenshots/losteditor.png)
+### GUI mode
+
+![GUI desktop](/docs/screenshots/lost_gui.png)
 
 ## Features
 
@@ -170,13 +172,16 @@ cd LostOS
 make run
 ```
 
-`make run` builds the kernel, creates the boot ISO, creates an example FAT32 `disk.img`, and starts QEMU.
+`make run` builds the VGA kernel, creates the boot ISO, creates an example FAT32 `disk.img`, and starts QEMU. To build or run the graphical version, use `MODE=gui` or the GUI-specific targets.
 
 | Command | Result |
 | --- | --- |
-| `make` | Create `os.iso` |
+| `make` | Create the VGA `os.iso` |
+| `make MODE=gui` | Create the GUI `os.iso` |
 | `make disk.img` | Create the development FAT32 disk image |
-| `make run` | Build and start LostOS in QEMU |
+| `make run` | Build and start VGA LostOS in QEMU |
+| `make run-gui` | Build and start GUI LostOS in QEMU |
+| `make iso-gui` | Create the GUI `os.iso` |
 | `make debug` | Start QEMU paused with a GDB server on port `1234`, then attach GDB to `kernel.bin` |
 | `make clean` | Remove generated build artifacts |
 
