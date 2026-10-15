@@ -24,27 +24,28 @@ struct capture_state {
 static struct capture_state capture_stack[T_CAPTURE_MAX_DEPTH];
 static int capture_depth = 0;
 static uint16_t *t_buffer = (uint16_t *)VGA_MEMORY;
-static uint16_t t_screen[VGA_HEIGHT][VGA_WIDTH];
-static uint16_t t_scrollback[VGA_SCROLLBACK_HEIGHT][VGA_WIDTH];
+static uint16_t t_screen[TERMINAL_HEIGHT][TERMINAL_WIDTH];
+static uint16_t t_scrollback[VGA_SCROLLBACK_HEIGHT][TERMINAL_WIDTH];
 static size_t t_scrollback_count = 0;
 static size_t t_view_offset = 0;
+static volatile int t_dirty = 1;
 
 static uint16_t t_blank_entry(void) {
   return vga_entry(' ', t_color);
 }
 
-static void t_clear_row(uint16_t row[VGA_WIDTH]) {
-  for (size_t x = 0; x < VGA_WIDTH; x++)
+static void t_clear_row(uint16_t row[TERMINAL_WIDTH]) {
+  for (size_t x = 0; x < TERMINAL_WIDTH; x++)
     row[x] = t_blank_entry();
 }
 
-static void t_copy_row(uint16_t dest[VGA_WIDTH], const uint16_t src[VGA_WIDTH]) {
-  for (size_t x = 0; x < VGA_WIDTH; x++)
+static void t_copy_row(uint16_t dest[TERMINAL_WIDTH], const uint16_t src[TERMINAL_WIDTH]) {
+  for (size_t x = 0; x < TERMINAL_WIDTH; x++)
     dest[x] = src[x];
 }
 
 static void t_render_view(void) {
-  size_t total_lines = t_scrollback_count + VGA_HEIGHT;
+  size_t total_lines = t_scrollback_count + TERMINAL_HEIGHT;
   size_t start = 0;
 
   if (total_lines > VGA_HEIGHT + t_view_offset)
@@ -73,6 +74,7 @@ void t_scroll_to_bottom(void) {
 
   t_view_offset = 0;
   t_render_view();
+  t_dirty = 1;
 }
 
 void t_init(void) {
@@ -80,22 +82,25 @@ void t_init(void) {
   t_column = 0;
   t_color = vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 
-  for (size_t y = 0; y < VGA_HEIGHT; y++)
+  for (size_t y = 0; y < TERMINAL_HEIGHT; y++)
     t_clear_row(t_screen[y]);
   t_scrollback_count = 0;
   t_view_offset = 0;
   t_render_view();
+  t_dirty = 1;
 }
 
 void t_setcolor(uint8_t color) { t_color = color; }
 
 void t_putentryat(char c, uint8_t color, size_t x, size_t y) {
-  if (x >= VGA_WIDTH || y >= VGA_HEIGHT)
+  if (x >= TERMINAL_WIDTH || y >= TERMINAL_HEIGHT)
     return;
 
   t_scroll_to_bottom();
   t_screen[y][x] = vga_entry(c, color);
-  t_buffer[y * VGA_WIDTH + x] = t_screen[y][x];
+  if (x < VGA_WIDTH && y < VGA_HEIGHT)
+    t_buffer[y * VGA_WIDTH + x] = t_screen[y][x];
+  t_dirty = 1;
 }
 
 void t_scroll(void) {
@@ -108,14 +113,15 @@ void t_scroll(void) {
     t_copy_row(t_scrollback[VGA_SCROLLBACK_HEIGHT - 1], t_screen[0]);
   }
 
-  for (size_t y = 1; y < VGA_HEIGHT; y++)
+  for (size_t y = 1; y < TERMINAL_HEIGHT; y++)
     t_copy_row(t_screen[y - 1], t_screen[y]);
 
-  t_clear_row(t_screen[VGA_HEIGHT - 1]);
-  t_row = VGA_HEIGHT - 1;
+  t_clear_row(t_screen[TERMINAL_HEIGHT - 1]);
+  t_row = TERMINAL_HEIGHT - 1;
 
   if (t_view_offset == 0)
     t_render_view();
+  t_dirty = 1;
 }
 
 void t_scroll_view_up(void) {
@@ -124,6 +130,7 @@ void t_scroll_view_up(void) {
 
   t_view_offset++;
   t_render_view();
+  t_dirty = 1;
 }
 
 void t_scroll_view_down(void) {
@@ -132,10 +139,11 @@ void t_scroll_view_down(void) {
 
   t_view_offset--;
   t_render_view();
+  t_dirty = 1;
 }
 
 void t_clear(void) {
-  for (size_t y = 0; y < VGA_HEIGHT; y++)
+  for (size_t y = 0; y < TERMINAL_HEIGHT; y++)
     t_clear_row(t_screen[y]);
 
   t_row = 0;
@@ -143,6 +151,7 @@ void t_clear(void) {
   t_scrollback_count = 0;
   t_view_offset = 0;
   t_render_view();
+  t_dirty = 1;
 }
 
 void vga_enable_cursor(uint8_t cursor_start, uint8_t cursor_end) {
@@ -165,6 +174,7 @@ void vga_update_cursor(size_t col, size_t row) {
   outb(0x3D5, (uint8_t)(pos & 0xFF));
   outb(0x3D4, 0x0E);
   outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+  t_dirty = 1;
 }
 
 void t_capture_begin(char *buffer, size_t capacity) {
@@ -202,10 +212,11 @@ void t_putchar(char c) {
 
   if (c == '\n') {
     t_column = 0;
-    if (++t_row == VGA_HEIGHT)
+    if (++t_row == TERMINAL_HEIGHT)
       t_scroll();
     else
       vga_update_cursor(t_column, t_row);
+    t_dirty = 1;
     return;
   }
 
@@ -217,9 +228,9 @@ void t_putchar(char c) {
   }
 
   t_putentryat(c, t_color, t_column, t_row);
-  if (++t_column == VGA_WIDTH) {
+  if (++t_column == TERMINAL_WIDTH) {
     t_column = 0;
-    if (++t_row == VGA_HEIGHT)
+    if (++t_row == TERMINAL_HEIGHT)
       t_scroll();
   }
 
@@ -331,4 +342,27 @@ void t_print(const char *data) {
 
 void t_force_redraw(void) {
     t_render_view();
+}
+
+uint16_t t_get_cell(size_t x, size_t y) {
+  size_t total_lines;
+  size_t start = 0;
+  size_t line;
+
+  if (x >= TERMINAL_WIDTH || y >= TERMINAL_HEIGHT)
+    return 0;
+
+  total_lines = t_scrollback_count + TERMINAL_HEIGHT;
+  if (total_lines > TERMINAL_HEIGHT + t_view_offset)
+    start = total_lines - TERMINAL_HEIGHT - t_view_offset;
+  line = start + y;
+  if (line < t_scrollback_count)
+    return t_scrollback[line][x];
+  return t_screen[line - t_scrollback_count][x];
+}
+
+int t_take_dirty(void) {
+  int dirty = t_dirty;
+  t_dirty = 0;
+  return dirty;
 }
