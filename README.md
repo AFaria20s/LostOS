@@ -181,6 +181,7 @@ make run
 | `make disk.img` | Create the development FAT32 disk image |
 | `make run` | Build and start VGA LostOS in QEMU |
 | `make run-gui` | Build and start GUI LostOS in QEMU |
+| `make test` | Build and run host-side string API regression tests |
 | `make iso-gui` | Create the GUI `os.iso` |
 | `make debug` | Start QEMU paused with a GDB server on port `1234`, then attach GDB to `kernel.bin` |
 | `make clean` | Remove generated build artifacts |

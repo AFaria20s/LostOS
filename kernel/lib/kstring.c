@@ -68,7 +68,7 @@ void k_itoa(int value, char *buffer, int base) {
 
   if (value < 0 && base == 10) {
     negative = 1;
-    n = (unsigned int)(-value);
+    n = 0U - (unsigned int)value;
   } else {
     n = (unsigned int)value;
   }

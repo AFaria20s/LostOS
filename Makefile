@@ -2,6 +2,7 @@ CC = gcc
 AS = as
 CPPFLAGS = -Iinclude
 CFLAGS = -m32 -nostdlib -ffreestanding -fno-stack-protector -fno-pic -Wall -g
+TEST_CFLAGS = -Wall -Wextra -Werror -Iinclude
 MODE ?= vga
 
 ifeq ($(MODE),gui)
@@ -95,11 +96,17 @@ iso-gui:
 tools/mkdisk: tools/mkdisk.c
 	gcc tools/mkdisk.c -o tools/mkdisk
 
+test-kstring: kernel/lib/kstring.c include/lib/kstring.h tests/kstring_test.c
+	$(CC) $(TEST_CFLAGS) kernel/lib/kstring.c tests/kstring_test.c -o $@
+
+test: test-kstring
+	./test-kstring
+
 disk.img: tools/mkdisk
 	./tools/mkdisk
 
 clean:
-	rm -rf *.o *.bin *.iso isodir tools/mkdisk disk.img obj obj-gui
+	rm -rf *.o *.bin *.iso isodir tools/mkdisk disk.img test-kstring obj obj-gui
 
 run:
 	$(MAKE) run-vga
@@ -119,6 +126,6 @@ debug: os.iso disk.img
 	sleep 1
 	gdb kernel.bin -ex "set architecture i386" -ex "target remote localhost:1234"
 
-.PHONY: all iso iso-vga iso-gui run run-vga run-gui debug clean FORCE
+.PHONY: all iso iso-vga iso-gui test test-kstring run run-vga run-gui debug clean FORCE
 
 FORCE:
