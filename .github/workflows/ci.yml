@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.mode }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [vga, gui]
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential \
+            grub-common \
+            grub-pc-bin \
+            make \
+            mtools \
+            xorriso
+
+      - name: Check patch whitespace
+        run: git diff --check
+
+      - name: Build kernel and bootable ISO
+        run: |
+          make clean
+          make MODE=${{ matrix.mode }}
+
+      - name: Verify Multiboot kernel
+        run: grub-file --is-x86-multiboot kernel.bin
+
+      - name: Verify ISO was created
+        run: test -s os.iso
+
+  host-tool:
+    name: Check host utility
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Compile mkdisk with strict warnings
+        run: |
+          gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+            tools/mkdisk.c -o /tmp/lostos-mkdisk
