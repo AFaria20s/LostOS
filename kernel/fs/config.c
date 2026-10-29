@@ -40,8 +40,8 @@ static void config_parse_line(char *line) {
             value[value_end - 1] == '\r'))
         value[--value_end] = '\0';
 
-    k_strcp(entries[entry_count].key, key);
-    k_strcp(entries[entry_count].value, value);
+    k_strcp(entries[entry_count].key, sizeof(entries[entry_count].key), key);
+    k_strcp(entries[entry_count].value, sizeof(entries[entry_count].value), value);
     entry_count++;
 }
 
@@ -117,7 +117,7 @@ int config_set(const char *key, const char *value) {
     // update in memory first
     for (int i = 0; i < entry_count; i++) {
         if (k_strcmp(entries[i].key, key) == 0) {
-            k_strcp(entries[i].value, value);
+            k_strcp(entries[i].value, sizeof(entries[i].value), value);
             goto persist;
         }
     }
@@ -126,8 +126,8 @@ int config_set(const char *key, const char *value) {
     if (entry_count >= CONFIG_MAX_ENTRIES)
         return 0;
 
-    k_strcp(entries[entry_count].key, key);
-    k_strcp(entries[entry_count].value, value);
+    k_strcp(entries[entry_count].key, sizeof(entries[entry_count].key), key);
+    k_strcp(entries[entry_count].value, sizeof(entries[entry_count].value), value);
     entry_count++;
 
     persist:
@@ -141,8 +141,8 @@ int config_set(const char *key, const char *value) {
             return 0;
 
         for (int i = 0; i < entry_count; i++) {
-            k_strcat(line, entries[i].key, entries[i].value, "=");
-            k_strapp(line, "\n");
+            k_strcat(line, sizeof(line), entries[i].key, entries[i].value, "=");
+            k_strapp(line, sizeof(line), "\n");
             vfs_write(&file, line, k_strlen(line));
         }
     }

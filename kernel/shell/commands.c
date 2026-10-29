@@ -117,7 +117,7 @@ static int shell_begin_input_redirect(const char *path, int append) {
       (!vfs_create(resolved) || !vfs_open(resolved, &file)))
     return 0;
 
-  k_strcp(shell_collecting_path, resolved);
+  k_strcp(shell_collecting_path, sizeof(shell_collecting_path), resolved);
   shell_collecting_input = 1;
   return 1;
 }
@@ -193,10 +193,10 @@ static void tree_print(const char *path, int depth, uint8_t *has_more_siblings) 
         // if it is a directory, enter recursively
         if (entries[i].attributes & 0x10) {
             char child_path[256];
-            k_strcp(child_path, path);
+            k_strcp(child_path, sizeof(child_path), path);
             if (path[k_strlen(path) - 1] != '/')
-                k_strapp(child_path, "/");
-            k_strapp(child_path, entries[i].name);
+                k_strapp(child_path, sizeof(child_path), "/");
+            k_strapp(child_path, sizeof(child_path), entries[i].name);
 
             has_more_siblings[depth] = !is_last;
             tree_print(child_path, depth + 1, has_more_siblings);
@@ -628,7 +628,7 @@ static int autocomplete_path(const char *input, void (*putc)(char)) {
             continue;
 
         if (matches == 0) {
-            k_strcp(common, entry.name);
+            k_strcp(common, sizeof(common), entry.name);
             only_match_is_directory = (entry.attributes & 0x10) != 0;
         } else {
             int length = 0;
@@ -981,7 +981,7 @@ static int expand_wildcards(char **argv, int argc, char **expanded_argv,
       return 0;
 
     if (slash == 0)
-      k_strcp(directory, shell_get_cwd());
+      k_strcp(directory, sizeof(directory), shell_get_cwd());
     else {
       for (size_t j = 0; j < slash; j++)
         directory[j] = argument[j];
@@ -1007,12 +1007,12 @@ static int expand_wildcards(char **argv, int argc, char **expanded_argv,
 
       expanded_argv[expanded_argc++] = storage + storage_length;
       if (slash == 0) {
-        k_strcp(storage + storage_length, entry.name);
+        k_strcp(storage + storage_length, sizeof(storage+storage_length), entry.name);
         storage_length += k_strlen(entry.name) + 1;
       } else {
         for (size_t j = 0; j < slash; j++)
           storage[storage_length++] = argument[j];
-        k_strcp(storage + storage_length, entry.name);
+        k_strcp(storage + storage_length, sizeof(storage+storage_length), entry.name);
         storage_length += k_strlen(entry.name) + 1;
       }
       matches++;
@@ -1452,8 +1452,8 @@ static int commands_execute_simple(char *line) {
   char script_path[256];
   struct vfs_file test;
 
-  k_strcat(script_path, "/bin/", argv[0], "");
-  k_strapp(script_path, ".lts");
+  k_strcat(script_path, sizeof(script_path), "/bin/", argv[0], "");
+  k_strapp(script_path, sizeof(script_path), ".lts");
 
   if (vfs_open(script_path, &test)) {
       script_execute(script_path);
@@ -1559,7 +1559,7 @@ static int shell_execute_stage(char *line, const char *input, size_t input_lengt
     char *command_argv[CMD_MAX_ARGS];
     int command_argc;
 
-    k_strcp(command_copy, command);
+    k_strcp(command_copy, sizeof(command_copy), command);
     command_argc = k_split(command_copy, command_argv, CMD_MAX_ARGS);
     if (command_argc == 1 && k_strcmp(command_argv[0], "cat") == 0) {
       if (!shell_begin_input_redirect(output_path, append)) {

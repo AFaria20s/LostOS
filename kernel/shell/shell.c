@@ -58,7 +58,7 @@ const char *shell_get_cwd(void) {
 }
 
 void shell_set_cwd(const char *path) {
-  k_strcp(cwd, path);
+  k_strcp(cwd, sizeof(cwd), path);
 }
 
 static void history_save_draft(void) {
@@ -225,7 +225,7 @@ static void history_add_loaded(const char *line) {
   }
 
   entry->seq = ++history_seq;
-  k_strcp(entry->timestamp, "--:--:--");
+  k_strcp(entry->timestamp, sizeof(entry->timestamp), "--:--:--");
   entry->older = history_newest;
   entry->newer = NULL;
   if (history_newest)

@@ -49,7 +49,7 @@ int vfs_ensure_parents(const char *path) {
 
     while (path[i]) {
         if (path[i] == '/' && i > 0) {
-            k_strcp(partial, path);
+            k_strcp(partial, sizeof(partial), path);
             partial[i] = '\0';
 
             if (!vfs_is_directory(partial))
@@ -66,7 +66,7 @@ int vfs_readdir(const char *path, int index, struct vfs_dirent *entry) {
 
     entry->size = fat_entry.size;
     entry->attributes = fat_entry.attributes;
-    k_strcp(entry->name, fat_entry.name);
+    k_strcp(entry->name, sizeof(entry->name), fat_entry.name);
     
     return 1;
 }

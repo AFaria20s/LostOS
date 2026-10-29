@@ -87,19 +87,31 @@ void k_itoa(int value, char *buffer, int base) {
   *buffer = '\0';
 }
 
-void k_strcp(char *dest, const char *src) {
-  int i = 0;
+int k_strcp(char *dest, size_t capacity, const char *src) {
+  size_t i = 0;
+  size_t src_length = k_strlen(src);
+
+  if (capacity == 0 || src_length >= capacity) return 0;
+
   while (src[i]!='\0') {
     dest[i] = src[i];
     i++;
   }
   dest[i]='\0';
+
+  return 1;
 }
 
 // Index 'src' at the end of 'dest' (assuming valid '\0')
-void k_strapp(char *dest, const char *src) {
-  int i = k_strlen(dest);
+int k_strapp(char *dest, size_t capacity, const char *src) {
+  int i = k_strlen(dest); // index at the end of dest (dest length)
   int j = 0;
+  
+  size_t dest_length = k_strlen(dest);
+  size_t src_length = k_strlen(src);
+
+  if (dest_length >= capacity || src_length >= capacity - dest_length)
+    return 0;
 
   while (src[j] != '\0') {
     dest[i] = src[j];
@@ -107,17 +119,22 @@ void k_strapp(char *dest, const char *src) {
     j++;
   }
   dest[i] = '\0';
+
+  return 1;
 }
 
 // Concatenate 2 strings
-void k_strcat(char *dest, const char *src1, const char *src2, const char *sep) {
-  k_strcp(dest, src1);
+int k_strcat(char *dest, size_t capacity, const char *src1, const char *src2, const char *sep) {
+  size_t required = k_strlen(src1) + k_strlen(src2);
 
-  if (sep != NULL) k_strapp(dest, sep);
+  if (sep != NULL) required += k_strlen(sep);
+  if (capacity == 0 || required >= capacity) return 0;
+  if (!k_strcp(dest, capacity, src1)) return 0;
+  if (sep != NULL && !k_strapp(dest, capacity, sep)) return 0;
+  if (!k_strapp(dest, capacity, src2)) return 0;
 
-  k_strapp(dest, src2);
+  return 1;
 }
-
 int k_strncmp(const char *a, const char *b, size_t n) {
   while (n > 0 && *a && (*a == *b)) {
     a++;
