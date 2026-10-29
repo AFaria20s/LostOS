@@ -35,7 +35,7 @@ void editor_open(const char *path) {
     state.mode = EDITOR_MODE_COMMAND;
     state.modified = 0;
 
-    k_strcp(state.filepath, path);
+    k_strcp(state.filepath, sizeof(state.filepath), path);
 
     struct vfs_file file;
     if (vfs_open(path, &file))

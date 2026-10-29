@@ -22,9 +22,9 @@ void system_getinfo(struct system_info *info) {
     struct memory_stats mem_stats;
     memory_get_stats(&mem_stats);
 
-    k_strcat(info->os_name, OS_NAME, OS_MODEL, OS_SEP);
-    k_strcp(info->architecture, ARCH_STRING);
-    k_strcat(info->build, __DATE__, __TIME__, " @ ");
+    k_strcat(info->os_name, sizeof(info->os_name), OS_NAME, OS_MODEL, OS_SEP);
+    k_strcp(info->architecture, sizeof(info->architecture), ARCH_STRING);
+    k_strcat(info->build, sizeof(info->build), __DATE__, __TIME__, " @ ");
     info->disk_mb = ata_is_ready() ? ata_get_info()->size_mb : 0;
     info->ram_kib = mem_stats.total_bytes / 1024;
     info->heap_used = mem_stats.used_bytes;
@@ -155,11 +155,11 @@ static void system_read_gpu(struct system_info *info) {
 
         const char *name = gpu_identify(vendor, device);
         if (name) {
-            k_strcp(info->gpu, name);
+            k_strcp(info->gpu, sizeof(info->gpu), name);
         } else {
             // Build "VEN:XXXX DEV:XXXX" 
             char tmp[5];
-            k_strcp(info->gpu, "VEN:");
+            k_strcp(info->gpu, sizeof(info->gpu), "VEN:");
             // manual hex render into tmp 
             const char hex[] = "0123456789ABCDEF";
             tmp[0] = hex[(vendor >> 12) & 0xF];
@@ -167,19 +167,19 @@ static void system_read_gpu(struct system_info *info) {
             tmp[2] = hex[(vendor >>  4) & 0xF];
             tmp[3] = hex[ vendor        & 0xF];
             tmp[4] = '\0';
-            k_strapp(info->gpu, tmp);
-            k_strapp(info->gpu, " DEV:");
+            k_strapp(info->gpu, sizeof(info->gpu), tmp);
+            k_strapp(info->gpu, sizeof(info->gpu), " DEV:");
             tmp[0] = hex[(device >> 12) & 0xF];
             tmp[1] = hex[(device >>  8) & 0xF];
             tmp[2] = hex[(device >>  4) & 0xF];
             tmp[3] = hex[ device        & 0xF];
             tmp[4] = '\0';
-            k_strapp(info->gpu, tmp);
+            k_strapp(info->gpu, sizeof(info->gpu), tmp);
         }
         return;
     }
 
-    k_strcp(info->gpu, "Unknown");
+    k_strcp(info->gpu, sizeof(info->gpu), "Unknown");
 }
 
 static uint8_t cmos_read(uint8_t reg) {
