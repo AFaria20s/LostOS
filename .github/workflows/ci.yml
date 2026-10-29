@@ -32,6 +32,7 @@ jobs:
             grub-common \
             grub-pc-bin \
             make \
+            mtools \
             xorriso
 
       - name: Check patch whitespace
