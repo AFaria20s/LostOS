@@ -14,12 +14,12 @@ int k_split(char *line, char **argv, int max_args);
 void k_itoa(int value, char *buffer, int base);
 
 // Concatenates 2 strings
-void k_strcat(char *dest, const char *src1, const char *src2, const char *sep);
+int k_strcat(char *dest, size_t capacity, const char *src1, const char *src2, const char *sep);
 
 // Index 'src' at the end of 'dest' (assuming valid '\0')
-void k_strapp(char *dest, const char *src);
+int k_strapp(char *dest, size_t capacity, const char *src);
 
-void k_strcp(char *dest, const char *src);
+int k_strcp(char *dest, size_t capacity, const char *src);
 
 // Compare first n characters from string
 int k_strncmp(const char *a, const char *b, size_t n);
