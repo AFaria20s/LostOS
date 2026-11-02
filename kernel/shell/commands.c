@@ -309,7 +309,7 @@ static void cmd_mkdir(int argc, char **argv) {
 
   resolve_path(shell_get_cwd(), argv[1], resolved);
 
-  if (!vfs_mkdir(resolved)) {
+  if (vfs_mkdir(resolved) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": could not create\n");
   }

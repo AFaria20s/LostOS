@@ -61,8 +61,26 @@ enum vfs_result vfs_create(const char *path) {
     }
 }
 
-int vfs_mkdir(const char *path) {
-    return fat32_mkdir(path);
+enum vfs_result vfs_mkdir(const char *path) {
+    int result;
+
+    if (!path)
+        return VFS_INVALID_PATH;
+
+    result = fat32_mkdir(path);
+    switch (result) {
+    case FAT32_MKDIR_OK:
+        return VFS_OK;
+    case FAT32_MKDIR_EXISTS:
+        return VFS_EXISTS;
+    case FAT32_MKDIR_INVALID_PATH:
+        return VFS_INVALID_PATH;
+    case FAT32_MKDIR_NOT_FOUND:
+        return VFS_NOT_FOUND;
+    case FAT32_MKDIR_IO_ERROR:
+    default:
+        return VFS_IO_ERROR;
+    }
 }
 
 int vfs_remove(const char *path) {
@@ -86,8 +104,9 @@ int vfs_ensure_parents(const char *path) {
             k_strcp(partial, sizeof(partial), path);
             partial[i] = '\0';
 
-            if (!vfs_is_directory(partial))
-                vfs_mkdir(partial);
+            if (!vfs_is_directory(partial) &&
+                vfs_mkdir(partial) != VFS_OK)
+                return 0;
         }
         i++;
     }

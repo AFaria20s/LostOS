@@ -20,6 +20,14 @@ enum fat32_create_result {
     FAT32_CREATE_IO_ERROR
 };
 
+enum fat32_mkdir_result {
+    FAT32_MKDIR_OK,
+    FAT32_MKDIR_EXISTS,
+    FAT32_MKDIR_INVALID_PATH,
+    FAT32_MKDIR_NOT_FOUND,
+    FAT32_MKDIR_IO_ERROR
+};
+
 // Stores an open FAT32 file
 struct fat32_file {
     uint32_t first_cluster;
@@ -59,7 +67,7 @@ uint32_t fat32_write(struct fat32_file *file, const void *buffer, uint32_t size)
 int fat32_create(const char *path);
 
 // Creates a directory at path
-// Returns 1 on success, 0 if it already exists or the parent doesn't
+// Returns a fat32_mkdir_result
 int fat32_mkdir(const char *path);
 
 // Removes a file (not a directory) at path

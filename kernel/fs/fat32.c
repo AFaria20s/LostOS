@@ -609,33 +609,60 @@ int fat32_mkdir(const char *path) {
     uint8_t dot[11]    = {'.', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
     uint8_t dotdot[11] = {'.', '.', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 
-    if (!fat32_ready || !path)
-        return 0;
+    if (!fat32_ready)
+        return FAT32_MKDIR_IO_ERROR;
+    if (!path || path[0] == '\0' || k_strlen(path) >= sizeof(parent_buffer))
+        return FAT32_MKDIR_INVALID_PATH;
 
     if (!fat32_split_path(path, parent_buffer, &name, &name_length, &parent_cluster))
-        return 0;
+        return FAT32_MKDIR_NOT_FOUND;
 
-    if (fat32_find_entry(parent_cluster, name, name_length, &existing, 0, 0))
-        return 0;
+    {
+        uint8_t raw_name[11];
+        int find_result;
+
+        if (!fat32_format_name(name, name_length, raw_name))
+            return FAT32_MKDIR_INVALID_PATH;
+
+        find_result = fat32_find_entry_status(parent_cluster, name, name_length,
+                                              &existing, 0, 0);
+        if (find_result < 0)
+            return FAT32_MKDIR_IO_ERROR;
+        if (find_result > 0)
+            return FAT32_MKDIR_EXISTS;
+    }
+
+    if (!fat32_alloc_entry_slot(parent_cluster, &lba, &offset))
+        return FAT32_MKDIR_IO_ERROR;
 
     new_cluster = fat32_alloc_cluster();
     if (new_cluster < 2)
-        return 0;
+        return FAT32_MKDIR_IO_ERROR;
 
     for (int i = 0; i < FAT32_SECTOR_SIZE; i++)
         sector[i] = 0;
 
     new_lba = fat32_cluster_lba(new_cluster);
     for (int i = 0; i < volume.sectors_per_cluster; i++)
-        fat32_write_sector(new_lba + i, sector);
+        if (!fat32_write_sector(new_lba + i, sector)) {
+            fat32_set_next_cluster(new_cluster, 0);
+            return FAT32_MKDIR_IO_ERROR;
+        }
 
-    fat32_write_entry_raw(new_lba, 0, dot, FAT32_ATTRIBUTE_DIRECTORY, new_cluster, 0);
-    fat32_write_entry_raw(new_lba, 32, dotdot, FAT32_ATTRIBUTE_DIRECTORY, parent_cluster, 0);
+    if (!fat32_write_entry_raw(new_lba, 0, dot, FAT32_ATTRIBUTE_DIRECTORY, new_cluster, 0) ||
+        !fat32_write_entry_raw(new_lba, 32, dotdot, FAT32_ATTRIBUTE_DIRECTORY,
+                               parent_cluster, 0)) {
+        fat32_set_next_cluster(new_cluster, 0);
+        return FAT32_MKDIR_IO_ERROR;
+    }
 
-    if (!fat32_alloc_entry_slot(parent_cluster, &lba, &offset))
-        return 0;
+    if (!fat32_write_entry(lba, offset, name, name_length, FAT32_ATTRIBUTE_DIRECTORY,
+                           new_cluster, 0)) {
+        fat32_set_next_cluster(new_cluster, 0);
+        return FAT32_MKDIR_IO_ERROR;
+    }
 
-    return fat32_write_entry(lba, offset, name, name_length, FAT32_ATTRIBUTE_DIRECTORY, new_cluster, 0);
+    return FAT32_MKDIR_OK;
 }
 
 int fat32_remove(const char *path) {
