@@ -36,6 +36,14 @@ enum fat32_remove_result {
     FAT32_REMOVE_IO_ERROR
 };
 
+enum fat32_rename_result {
+    FAT32_RENAME_OK,
+    FAT32_RENAME_NOT_FOUND,
+    FAT32_RENAME_EXISTS,
+    FAT32_RENAME_INVALID_PATH,
+    FAT32_RENAME_IO_ERROR
+};
+
 // Stores an open FAT32 file
 struct fat32_file {
     uint32_t first_cluster;
@@ -83,7 +91,7 @@ int fat32_mkdir(const char *path);
 int fat32_remove(const char *path);
 
 // Moves/renames a file or directory from old_path to new_path
-// Returns 1 on success (0 if the destination already exists)
+// Returns a fat32_rename_result
 int fat32_rename(const char *old_path, const char *new_path);
 
 // Removes an empty directory at path

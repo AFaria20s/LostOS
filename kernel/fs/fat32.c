@@ -715,25 +715,54 @@ int fat32_rename(const char *old_path, const char *new_path) {
     const char *name;
     int name_length;
     uint32_t parent_cluster, lba, offset;
+    int open_result;
+    int find_result;
 
-    if (!fat32_ready || fat32_open(old_path, &source) != FAT32_OPEN_OK ||
-        source.entry_lba == 0)
-        return 0;
+    if (!fat32_ready)
+        return FAT32_RENAME_IO_ERROR;
+    if (!old_path || !new_path || old_path[0] == '\0' || new_path[0] == '\0')
+        return FAT32_RENAME_INVALID_PATH;
 
-    if (!fat32_split_path(new_path, parent_buffer, &name, &name_length, &parent_cluster))
-        return 0;
+    open_result = fat32_open(old_path, &source);
+    if (open_result == FAT32_OPEN_NOT_FOUND)
+        return FAT32_RENAME_NOT_FOUND;
+    if (open_result == FAT32_OPEN_INVALID_PATH)
+        return FAT32_RENAME_INVALID_PATH;
+    if (open_result != FAT32_OPEN_OK)
+        return FAT32_RENAME_IO_ERROR;
+    if (source.entry_lba == 0)
+        return FAT32_RENAME_INVALID_PATH;
 
-    if (fat32_find_entry(parent_cluster, name, name_length, &existing, 0, 0))
-        return 0;
+    if (k_strlen(new_path) >= sizeof(parent_buffer) ||
+        !fat32_split_path(new_path, parent_buffer, &name, &name_length, &parent_cluster))
+        return FAT32_RENAME_NOT_FOUND;
+
+    {
+        uint8_t raw_name[11];
+        if (!fat32_format_name(name, name_length, raw_name))
+            return FAT32_RENAME_INVALID_PATH;
+    }
+
+    find_result = fat32_find_entry_status(parent_cluster, name, name_length,
+                                          &existing, 0, 0);
+    if (find_result < 0)
+        return FAT32_RENAME_IO_ERROR;
+    if (find_result > 0)
+        return FAT32_RENAME_EXISTS;
 
     if (!fat32_alloc_entry_slot(parent_cluster, &lba, &offset))
-        return 0;
+        return FAT32_RENAME_IO_ERROR;
 
-    if (!fat32_write_entry(lba, offset, name, name_length, source.attributes, source.first_cluster, source.size))
-        return 0;
+    if (!fat32_write_entry(lba, offset, name, name_length, source.attributes,
+                           source.first_cluster, source.size))
+        return FAT32_RENAME_IO_ERROR;
 
-    fat32_delete_entry(source.entry_lba, source.entry_offset);
-    return 1;
+    if (!fat32_delete_entry(source.entry_lba, source.entry_offset)) {
+        fat32_delete_entry(lba, offset);
+        return FAT32_RENAME_IO_ERROR;
+    }
+
+    return FAT32_RENAME_OK;
 }
 
 // Checks whether a directory cluster chain has no entries besides "." and ".."

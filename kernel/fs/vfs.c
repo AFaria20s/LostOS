@@ -105,8 +105,26 @@ enum vfs_result vfs_remove(const char *path) {
     }
 }
 
-int vfs_rename(const char *old_path, const char *new_path) {
-    return fat32_rename(old_path, new_path);
+enum vfs_result vfs_rename(const char *old_path, const char *new_path) {
+    int result;
+
+    if (!old_path || !new_path)
+        return VFS_INVALID_PATH;
+
+    result = fat32_rename(old_path, new_path);
+    switch (result) {
+    case FAT32_RENAME_OK:
+        return VFS_OK;
+    case FAT32_RENAME_NOT_FOUND:
+        return VFS_NOT_FOUND;
+    case FAT32_RENAME_EXISTS:
+        return VFS_EXISTS;
+    case FAT32_RENAME_INVALID_PATH:
+        return VFS_INVALID_PATH;
+    case FAT32_RENAME_IO_ERROR:
+    default:
+        return VFS_IO_ERROR;
+    }
 }
 
 int vfs_rmdir(const char *path) {

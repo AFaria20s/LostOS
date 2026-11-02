@@ -360,7 +360,7 @@ static void cmd_mv(int argc, char **argv) {
   resolve_path(shell_get_cwd(), argv[1], source);
   resolve_path(shell_get_cwd(), argv[2], destination);
 
-  if (!vfs_rename(source, destination)) {
+  if (vfs_rename(source, destination) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": could not move\n");
   }
