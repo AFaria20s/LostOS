@@ -16,6 +16,7 @@ enum vfs_result {
     VFS_OK,
     VFS_NOT_FOUND,
     VFS_EXISTS,
+    VFS_IS_DIRECTORY,
     VFS_INVALID_PATH,
     VFS_IO_ERROR
 };
@@ -31,7 +32,7 @@ uint32_t vfs_write(struct vfs_file *file, const void *buf, uint32_t size);
 
 enum vfs_result vfs_create(const char *path);
 enum vfs_result vfs_mkdir(const char *path);
-int vfs_remove(const char *path);
+enum vfs_result vfs_remove(const char *path);
 int vfs_rename(const char *old_path, const char *new_path);
 int vfs_rmdir(const char *path);
 

@@ -111,7 +111,8 @@ static int shell_begin_input_redirect(const char *path, int append) {
   struct vfs_file file;
 
   resolve_path(shell_get_cwd(), path, resolved);
-  if (!append && vfs_open(resolved, &file) == VFS_OK && !vfs_remove(resolved))
+  if (!append && vfs_open(resolved, &file) == VFS_OK &&
+      vfs_remove(resolved) != VFS_OK)
     return 0;
   if (vfs_open(resolved, &file) != VFS_OK &&
       (vfs_create(resolved) != VFS_OK || vfs_open(resolved, &file) != VFS_OK))
@@ -325,7 +326,7 @@ static void cmd_rm(int argc, char **argv) {
 
   resolve_path(shell_get_cwd(), argv[1], resolved);
 
-  if (!vfs_remove(resolved)) {
+  if (vfs_remove(resolved) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": could not remove\n");
   }
@@ -1614,7 +1615,7 @@ static int shell_execute_stage(char *line, const char *input, size_t input_lengt
     struct vfs_file file;
     resolve_path(shell_get_cwd(), output_path, resolved);
     if (!append && vfs_open(resolved, &file) == VFS_OK) {
-      if (!vfs_remove(resolved)) {
+      if (vfs_remove(resolved) != VFS_OK) {
         t_print_raw(output_path);
         t_print(": could not overwrite\n");
         return 1;
