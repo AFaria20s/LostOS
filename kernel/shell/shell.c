@@ -44,7 +44,7 @@ static void history_persist(const char *line) {
   size_t length = k_strlen(line);
 
   if (vfs_open(HISTORY_PATH, &file) != VFS_OK) {
-    if (!vfs_create(HISTORY_PATH) || vfs_open(HISTORY_PATH, &file) != VFS_OK)
+    if (vfs_create(HISTORY_PATH) != VFS_OK || vfs_open(HISTORY_PATH, &file) != VFS_OK)
       return;
   }
 

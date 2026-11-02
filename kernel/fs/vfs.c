@@ -39,8 +39,26 @@ uint32_t vfs_write(struct vfs_file *file, const void *buf, uint32_t size) {
     return fat32_write(&file->fat32, buf, size);
 }
 
-int vfs_create(const char *path) {
-    return fat32_create(path);
+enum vfs_result vfs_create(const char *path) {
+    int result;
+
+    if (!path)
+        return VFS_INVALID_PATH;
+
+    result = fat32_create(path);
+    switch (result) {
+    case FAT32_CREATE_OK:
+        return VFS_OK;
+    case FAT32_CREATE_EXISTS:
+        return VFS_EXISTS;
+    case FAT32_CREATE_INVALID_PATH:
+        return VFS_INVALID_PATH;
+    case FAT32_CREATE_NOT_FOUND:
+        return VFS_NOT_FOUND;
+    case FAT32_CREATE_IO_ERROR:
+    default:
+        return VFS_IO_ERROR;
+    }
 }
 
 int vfs_mkdir(const char *path) {

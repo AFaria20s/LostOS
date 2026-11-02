@@ -15,6 +15,7 @@ struct vfs_dirent {
 enum vfs_result {
     VFS_OK,
     VFS_NOT_FOUND,
+    VFS_EXISTS,
     VFS_INVALID_PATH,
     VFS_IO_ERROR
 };
@@ -28,7 +29,7 @@ int vfs_readdir(const char *path, int index, struct vfs_dirent *entry);
 uint32_t vfs_read(struct vfs_file *file, void *buf, uint32_t size);
 uint32_t vfs_write(struct vfs_file *file, const void *buf, uint32_t size);
 
-int vfs_create(const char *path);
+enum vfs_result vfs_create(const char *path);
 int vfs_mkdir(const char *path);
 int vfs_remove(const char *path);
 int vfs_rename(const char *old_path, const char *new_path);

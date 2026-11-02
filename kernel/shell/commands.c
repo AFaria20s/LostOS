@@ -114,7 +114,7 @@ static int shell_begin_input_redirect(const char *path, int append) {
   if (!append && vfs_open(resolved, &file) == VFS_OK && !vfs_remove(resolved))
     return 0;
   if (vfs_open(resolved, &file) != VFS_OK &&
-      (!vfs_create(resolved) || vfs_open(resolved, &file) != VFS_OK))
+      (vfs_create(resolved) != VFS_OK || vfs_open(resolved, &file) != VFS_OK))
     return 0;
 
   k_strcp(shell_collecting_path, sizeof(shell_collecting_path), resolved);
@@ -293,7 +293,7 @@ static void cmd_touch(int argc, char **argv) {
 
   resolve_path(shell_get_cwd(), argv[1], resolved);
 
-  if (!vfs_create(resolved)) {
+  if (vfs_create(resolved) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": could not create\n");
   }
@@ -386,7 +386,7 @@ static void cmd_cp(int argc, char **argv) {
     return;
   }
 
-  if (!vfs_create(destination)) {
+  if (vfs_create(destination) != VFS_OK) {
     t_print_raw(argv[2]);
     t_print(": could not create\n");
     return;
@@ -1621,7 +1621,7 @@ static int shell_execute_stage(char *line, const char *input, size_t input_lengt
       }
     }
     if (vfs_open(resolved, &file) != VFS_OK &&
-        (!vfs_create(resolved) || vfs_open(resolved, &file) != VFS_OK)) {
+        (vfs_create(resolved) != VFS_OK || vfs_open(resolved, &file) != VFS_OK)) {
       t_print_raw(output_path);
       t_print(": could not open\n");
       return 1;
