@@ -44,6 +44,28 @@ enum fat32_rename_result {
     FAT32_RENAME_IO_ERROR
 };
 
+enum fat32_io_result {
+    FAT32_IO_OK,
+    FAT32_IO_EOF,
+    FAT32_IO_INVALID,
+    FAT32_IO_ERROR
+};
+
+enum fat32_rmdir_result {
+    FAT32_RMDIR_OK,
+    FAT32_RMDIR_NOT_FOUND,
+    FAT32_RMDIR_INVALID_PATH,
+    FAT32_RMDIR_NOT_EMPTY,
+    FAT32_RMDIR_IO_ERROR
+};
+
+enum fat32_readdir_result {
+    FAT32_READDIR_OK,
+    FAT32_READDIR_END,
+    FAT32_READDIR_INVALID_PATH,
+    FAT32_READDIR_IO_ERROR
+};
+
 // Stores an open FAT32 file
 struct fat32_file {
     uint32_t first_cluster;
@@ -77,6 +99,10 @@ uint32_t fat32_read(struct fat32_file *file, void *buffer, uint32_t size);
 // Writes bytes to an open file, allocating clusters as needed
 // Returns the number of bytes written
 uint32_t fat32_write(struct fat32_file *file, const void *buffer, uint32_t size);
+enum fat32_io_result fat32_read_status(struct fat32_file *file, void *buffer,
+                                        uint32_t size, uint32_t *read);
+enum fat32_io_result fat32_write_status(struct fat32_file *file, const void *buffer,
+                                         uint32_t size, uint32_t *written);
 
 // Creates an empty file at path
 // Returns a fat32_create_result
@@ -95,11 +121,11 @@ int fat32_remove(const char *path);
 int fat32_rename(const char *old_path, const char *new_path);
 
 // Removes an empty directory at path
-// Returns 1 on success (0 if it isn't empty or doesn't exist)
+// Returns a fat32 result
 int fat32_rmdir(const char *path);
 
 // Reads an entry from a directory
-// Returns 1 when the entry exists
+// Returns a fat32_readdir_result
 int fat32_readdir(const char *path, int index, struct fat32_dirent *entry);
 
 #endif

@@ -167,7 +167,8 @@ static void tree_print(const char *path, int depth, uint8_t *has_more_siblings) 
     int count = 0;
 
     // read all entries first to know how many there are
-    while (count < 64 && vfs_readdir(path, count, &entries[count]))
+    while (count < 64 &&
+           vfs_readdir(path, count, &entries[count]) == VFS_OK)
         count++;
 
     for (int i = 0; i < count; i++) {
@@ -342,7 +343,7 @@ static void cmd_rmdir(int argc, char **argv) {
 
   resolve_path(shell_get_cwd(), argv[1], resolved);
 
-  if (!vfs_rmdir(resolved)) {
+  if (vfs_rmdir(resolved) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": could not remove\n");
   }
@@ -418,7 +419,7 @@ static void cmd_ls(int argc, char **argv) {
 
     resolve_path(shell_get_cwd(), argc > 1 ? argv[1] : ".", path);
 
-    while (vfs_readdir(path, index++, &entry)) {
+    while (vfs_readdir(path, index++, &entry) == VFS_OK) {
       if (entry.attributes & 0x10) // if it is folder
         t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK));
       else
@@ -624,7 +625,7 @@ static int autocomplete_path(const char *input, void (*putc)(char)) {
 
     resolve_path(shell_get_cwd(), directory_input, directory);
 
-    while (vfs_readdir(directory, index++, &entry)) {
+    while (vfs_readdir(directory, index++, &entry) == VFS_OK) {
         if (!name_has_prefix(entry.name, name_prefix))
             continue;
 
@@ -657,7 +658,7 @@ static int autocomplete_path(const char *input, void (*putc)(char)) {
 
     t_putchar('\n');
     index = 0;
-    while (vfs_readdir(directory, index++, &entry)) {
+    while (vfs_readdir(directory, index++, &entry) == VFS_OK) {
         if (!name_has_prefix(entry.name, name_prefix))
             continue;
 
@@ -997,7 +998,7 @@ static int expand_wildcards(char **argv, int argc, char **expanded_argv,
     int matches = 0;
     for (int index = 0; ; index++) {
       struct vfs_dirent entry;
-      if (!vfs_readdir(resolved_directory, index, &entry))
+      if (vfs_readdir(resolved_directory, index, &entry) != VFS_OK)
         break;
       if (!wildcard_match(pattern, entry.name))
         continue;

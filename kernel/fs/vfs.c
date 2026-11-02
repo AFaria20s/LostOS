@@ -127,8 +127,26 @@ enum vfs_result vfs_rename(const char *old_path, const char *new_path) {
     }
 }
 
-int vfs_rmdir(const char *path) {
-    return fat32_rmdir(path);
+enum vfs_result vfs_rmdir(const char *path) {
+    int result;
+
+    if (!path)
+        return VFS_INVALID_PATH;
+
+    result = fat32_rmdir(path);
+    switch (result) {
+    case FAT32_RMDIR_OK:
+        return VFS_OK;
+    case FAT32_RMDIR_NOT_FOUND:
+        return VFS_NOT_FOUND;
+    case FAT32_RMDIR_INVALID_PATH:
+        return VFS_INVALID_PATH;
+    case FAT32_RMDIR_NOT_EMPTY:
+        return VFS_NOT_EMPTY;
+    case FAT32_RMDIR_IO_ERROR:
+    default:
+        return VFS_IO_ERROR;
+    }
 }
 
 int vfs_ensure_parents(const char *path) {
@@ -149,15 +167,68 @@ int vfs_ensure_parents(const char *path) {
     return 1;
 }
 
-int vfs_readdir(const char *path, int index, struct vfs_dirent *entry) {
+enum vfs_result vfs_readdir(const char *path, int index, struct vfs_dirent *entry) {
     struct fat32_dirent fat_entry;
-    if (!fat32_readdir(path, index, &fat_entry)) return 0;
+    if (!path || !entry || index < 0)
+        return VFS_INVALID_PATH;
+    switch (fat32_readdir(path, index, &fat_entry)) {
+    case FAT32_READDIR_OK:
+        break;
+    case FAT32_READDIR_END:
+        return VFS_NOT_FOUND;
+    case FAT32_READDIR_INVALID_PATH:
+        return VFS_INVALID_PATH;
+    case FAT32_READDIR_IO_ERROR:
+    default:
+        return VFS_IO_ERROR;
+    }
 
     entry->size = fat_entry.size;
     entry->attributes = fat_entry.attributes;
     k_strcp(entry->name, sizeof(entry->name), fat_entry.name);
     
-    return 1;
+    return VFS_OK;
+}
+
+enum vfs_result vfs_read_status(struct vfs_file *file, void *buf, uint32_t size,
+                                uint32_t *read) {
+    int result;
+
+    if (!file)
+        return VFS_INVALID_PATH;
+    result = fat32_read_status(&file->fat32, buf, size, read);
+
+    switch (result) {
+    case FAT32_IO_OK:
+        return VFS_OK;
+    case FAT32_IO_EOF:
+        return VFS_EOF;
+    case FAT32_IO_INVALID:
+        return VFS_INVALID_PATH;
+    case FAT32_IO_ERROR:
+    default:
+        return VFS_IO_ERROR;
+    }
+}
+
+enum vfs_result vfs_write_status(struct vfs_file *file, const void *buf,
+                                 uint32_t size, uint32_t *written) {
+    int result;
+
+    if (!file)
+        return VFS_INVALID_PATH;
+    result = fat32_write_status(&file->fat32, buf, size, written);
+
+    switch (result) {
+    case FAT32_IO_OK:
+        return VFS_OK;
+    case FAT32_IO_INVALID:
+        return VFS_INVALID_PATH;
+    case FAT32_IO_EOF:
+    case FAT32_IO_ERROR:
+    default:
+        return VFS_IO_ERROR;
+    }
 }
 
 int vfs_is_ready(void) {
