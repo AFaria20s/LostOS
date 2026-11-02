@@ -54,7 +54,7 @@ static int config_load(void) {
 
     entry_count = 0;
 
-    if (!vfs_open(CONFIG_PATH, &file))
+    if (vfs_open(CONFIG_PATH, &file) != VFS_OK)
         return 0;
 
     while ((bytes_read = vfs_read(&file, buf, sizeof(buf))) > 0) {
@@ -88,14 +88,14 @@ static void config_write_defaults(void) {
         "theme=default\n";
 
     vfs_create(CONFIG_PATH);
-    if (vfs_open(CONFIG_PATH, &file))
+    if (vfs_open(CONFIG_PATH, &file) == VFS_OK)
         vfs_write(&file, defaults, k_strlen(defaults));
 }
 
 int config_init(void) {
     struct vfs_file test;
 
-    if (!vfs_open(CONFIG_PATH, &test))
+    if (vfs_open(CONFIG_PATH, &test) != VFS_OK)
         config_write_defaults();
 
     return config_load();
@@ -137,7 +137,7 @@ int config_set(const char *key, const char *value) {
         char line[CONFIG_KEY_LEN + CONFIG_VALUE_LEN + 2];
 
         vfs_create(CONFIG_PATH); // no-op if it already exists, depends on your vfs_create
-        if (!vfs_open(CONFIG_PATH, &file))
+        if (vfs_open(CONFIG_PATH, &file) != VFS_OK)
             return 0;
 
         for (int i = 0; i < entry_count; i++) {

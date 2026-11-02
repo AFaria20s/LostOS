@@ -38,7 +38,7 @@ void editor_open(const char *path) {
     k_strcp(state.filepath, sizeof(state.filepath), path);
 
     struct vfs_file file;
-    if (vfs_open(path, &file))
+    if (vfs_open(path, &file) == VFS_OK)
         editor_load_from_file(&file);
 
     editor_active = 1;
@@ -355,11 +355,11 @@ static void editor_save(void) {
     uint32_t written;
 
     // try to open, create if it does not exist
-    if (!vfs_open(state.filepath, &file)) {
+    if (vfs_open(state.filepath, &file) != VFS_OK) {
         vfs_ensure_parents(state.filepath);
         if (!vfs_create(state.filepath))
             t_print("Could not create file!\n");
-        if (!vfs_open(state.filepath, &file))
+        if (vfs_open(state.filepath, &file) != VFS_OK)
             return;
     }
 

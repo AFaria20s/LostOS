@@ -12,10 +12,17 @@ struct vfs_dirent {
     uint8_t attributes;
 };
 
+enum vfs_result {
+    VFS_OK,
+    VFS_NOT_FOUND,
+    VFS_INVALID_PATH,
+    VFS_IO_ERROR
+};
+
 int vfs_init(void);
 int vfs_is_ready(void);
 
-int vfs_open(const char *path, struct vfs_file *file);
+enum vfs_result vfs_open(const char *path, struct vfs_file *file);
 int vfs_readdir(const char *path, int index, struct vfs_dirent *entry);
 
 uint32_t vfs_read(struct vfs_file *file, void *buf, uint32_t size);

@@ -5,6 +5,13 @@
 
 #define FAT32_NAME_MAX 12
 
+enum fat32_open_result {
+    FAT32_OPEN_OK,
+    FAT32_OPEN_NOT_FOUND,
+    FAT32_OPEN_INVALID_PATH,
+    FAT32_OPEN_IO_ERROR
+};
+
 // Stores an open FAT32 file
 struct fat32_file {
     uint32_t first_cluster;
@@ -28,7 +35,7 @@ struct fat32_dirent {
 int fat32_init(void);
 
 // Opens a file or directory by path
-// Returns 1 on success
+// Returns a fat32_open_result
 int fat32_open(const char *path, struct fat32_file *file);
 
 // Reads bytes from an open file

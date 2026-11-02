@@ -127,6 +127,20 @@ static uint32_t fat32_next_cluster(uint32_t cluster) {
     return read_le32(sector + offset % FAT32_SECTOR_SIZE) & 0x0FFFFFFF;
 }
 
+static uint32_t fat32_next_cluster_status(uint32_t cluster, int *read_ok) {
+    uint8_t sector[FAT32_SECTOR_SIZE];
+    uint32_t offset = cluster * 4;
+    uint32_t lba = volume.fat_lba + offset / FAT32_SECTOR_SIZE;
+
+    if (!fat32_read_sector(lba, sector)) {
+        *read_ok = 0;
+        return FAT32_CLUSTER_END;
+    }
+
+    *read_ok = 1;
+    return read_le32(sector + offset % FAT32_SECTOR_SIZE) & 0x0FFFFFFF;
+}
+
 // Checks if a directory entry can be used
 static int fat32_entry_visible(const uint8_t *raw) {
     uint8_t attributes = raw[11];
@@ -227,8 +241,10 @@ static int fat32_name_matches(const uint8_t *raw, const char *name, int length) 
 }
 
 // Finds an entry inside a directory
-static int fat32_find_entry(uint32_t cluster, const char *name, int length,
-                            struct fat32_dirent *entry, uint32_t *entry_lba, uint32_t *entry_offset) {
+// Returns 1 when found, 0 when absent, and -1 on a disk read failure.
+static int fat32_find_entry_status(uint32_t cluster, const char *name, int length,
+                                   struct fat32_dirent *entry, uint32_t *entry_lba,
+                                   uint32_t *entry_offset) {
     uint8_t sector[FAT32_SECTOR_SIZE];
 
     while (!fat32_is_end_cluster(cluster) && cluster >= 2) {
@@ -236,7 +252,7 @@ static int fat32_find_entry(uint32_t cluster, const char *name, int length,
 
         for (int i = 0; i < volume.sectors_per_cluster; i++) {
             if (!fat32_read_sector(lba + i, sector))
-                return 0;
+                return -1;
 
             for (int j = 0; j < FAT32_SECTOR_SIZE; j += FAT32_DIRECTORY_ENTRY_SIZE) {
                 if (sector[j] == 0)
@@ -252,10 +268,22 @@ static int fat32_find_entry(uint32_t cluster, const char *name, int length,
             }
         }
 
-        cluster = fat32_next_cluster(cluster);
+        {
+            int read_ok;
+            cluster = fat32_next_cluster_status(cluster, &read_ok);
+            if (!read_ok)
+                return -1;
+        }
     }
 
     return 0;
+}
+
+static int fat32_find_entry(uint32_t cluster, const char *name, int length,
+                            struct fat32_dirent *entry, uint32_t *entry_lba,
+                            uint32_t *entry_offset) {
+    return fat32_find_entry_status(cluster, name, length, entry, entry_lba,
+                                   entry_offset) == 1;
 }
 
 // Finds a free 32-byte slot in a directory, extending it if full
@@ -440,8 +468,10 @@ int fat32_open(const char *path, struct fat32_file *file) {
     uint32_t entry_offset = 0;
     const char *part;
 
-    if (!fat32_ready || !path || !file)
-        return 0;
+    if (!fat32_ready)
+        return FAT32_OPEN_IO_ERROR;
+    if (!path || !file || path[0] == '\0')
+        return FAT32_OPEN_INVALID_PATH;
 
     cluster = volume.root_cluster;
     part = path;
@@ -467,8 +497,18 @@ int fat32_open(const char *path, struct fat32_file *file) {
             next++;
 
         length = (int)(next - part);
-        if (length == 0 || !fat32_find_entry(cluster, part, length, &entry, &entry_lba, &entry_offset))
-            return 0;
+        if (length == 0 || length > FAT32_NAME_MAX ||
+            !fat32_format_name(part, length, (uint8_t[11]){0}))
+            return FAT32_OPEN_INVALID_PATH;
+
+        {
+            int find_result = fat32_find_entry_status(cluster, part, length, &entry,
+                                                      &entry_lba, &entry_offset);
+            if (find_result < 0)
+                return FAT32_OPEN_IO_ERROR;
+            if (find_result == 0)
+                return FAT32_OPEN_NOT_FOUND;
+        }
 
         while (*next == '/')
             next++;
@@ -480,17 +520,17 @@ int fat32_open(const char *path, struct fat32_file *file) {
             file->attributes = entry.attributes;
             file->entry_lba = entry_lba;
             file->entry_offset = entry_offset;
-            return 1;
+            return FAT32_OPEN_OK;
         }
 
         if (!(entry.attributes & FAT32_ATTRIBUTE_DIRECTORY))
-            return 0;
+            return FAT32_OPEN_NOT_FOUND;
 
         cluster = entry.first_cluster;
         part = next;
     }
 
-    return 0;
+    return FAT32_OPEN_NOT_FOUND;
 }
 
 // Splits the path into a parent directory cluster and the final component name

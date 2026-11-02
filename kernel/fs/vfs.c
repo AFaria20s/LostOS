@@ -11,8 +11,24 @@ int vfs_init(void) {
     return vfs_ready;
 }
 
-int vfs_open(const char *path, struct vfs_file *file) {
-    return fat32_open(path, &file->fat32);
+enum vfs_result vfs_open(const char *path, struct vfs_file *file) {
+    int result;
+
+    if (!path || !file)
+        return VFS_INVALID_PATH;
+
+    result = fat32_open(path, &file->fat32);
+    switch (result) {
+    case FAT32_OPEN_OK:
+        return VFS_OK;
+    case FAT32_OPEN_NOT_FOUND:
+        return VFS_NOT_FOUND;
+    case FAT32_OPEN_INVALID_PATH:
+        return VFS_INVALID_PATH;
+    case FAT32_OPEN_IO_ERROR:
+    default:
+        return VFS_IO_ERROR;
+    }
 }
 
 uint32_t vfs_read(struct vfs_file *file, void *buf, uint32_t size) {
@@ -77,6 +93,6 @@ int vfs_is_ready(void) {
 
 int vfs_is_directory(const char *path) {
     struct vfs_file file;
-    if (!vfs_open(path, &file)) return 0;
+    if (vfs_open(path, &file) != VFS_OK) return 0;
     return file.fat32.attributes & 0x10;
 }
