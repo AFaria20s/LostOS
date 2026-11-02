@@ -43,8 +43,8 @@ static void history_persist(const char *line) {
   struct vfs_file file;
   size_t length = k_strlen(line);
 
-  if (!vfs_open(HISTORY_PATH, &file)) {
-    if (!vfs_create(HISTORY_PATH) || !vfs_open(HISTORY_PATH, &file))
+  if (vfs_open(HISTORY_PATH, &file) != VFS_OK) {
+    if (vfs_create(HISTORY_PATH) != VFS_OK || vfs_open(HISTORY_PATH, &file) != VFS_OK)
       return;
   }
 
@@ -246,7 +246,7 @@ void shell_history_init(void) {
   uint32_t bytes_read;
   int line_length = 0;
 
-  if (!vfs_open(HISTORY_PATH, &file))
+  if (vfs_open(HISTORY_PATH, &file) != VFS_OK)
     return;
 
   while ((bytes_read = vfs_read(&file, buffer, sizeof(buffer))) > 0) {

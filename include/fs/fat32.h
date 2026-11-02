@@ -5,6 +5,67 @@
 
 #define FAT32_NAME_MAX 12
 
+enum fat32_open_result {
+    FAT32_OPEN_OK,
+    FAT32_OPEN_NOT_FOUND,
+    FAT32_OPEN_INVALID_PATH,
+    FAT32_OPEN_IO_ERROR
+};
+
+enum fat32_create_result {
+    FAT32_CREATE_OK,
+    FAT32_CREATE_EXISTS,
+    FAT32_CREATE_INVALID_PATH,
+    FAT32_CREATE_NOT_FOUND,
+    FAT32_CREATE_IO_ERROR
+};
+
+enum fat32_mkdir_result {
+    FAT32_MKDIR_OK,
+    FAT32_MKDIR_EXISTS,
+    FAT32_MKDIR_INVALID_PATH,
+    FAT32_MKDIR_NOT_FOUND,
+    FAT32_MKDIR_IO_ERROR
+};
+
+enum fat32_remove_result {
+    FAT32_REMOVE_OK,
+    FAT32_REMOVE_NOT_FOUND,
+    FAT32_REMOVE_INVALID_PATH,
+    FAT32_REMOVE_IS_DIRECTORY,
+    FAT32_REMOVE_IO_ERROR
+};
+
+enum fat32_rename_result {
+    FAT32_RENAME_OK,
+    FAT32_RENAME_NOT_FOUND,
+    FAT32_RENAME_EXISTS,
+    FAT32_RENAME_INVALID_PATH,
+    FAT32_RENAME_IO_ERROR
+};
+
+enum fat32_io_result {
+    FAT32_IO_OK,
+    FAT32_IO_EOF,
+    FAT32_IO_INVALID,
+    FAT32_IO_ERROR
+};
+
+enum fat32_rmdir_result {
+    FAT32_RMDIR_OK,
+    FAT32_RMDIR_NOT_FOUND,
+    FAT32_RMDIR_INVALID_PATH,
+    FAT32_RMDIR_NOT_EMPTY,
+    FAT32_RMDIR_IO_ERROR
+};
+
+enum fat32_readdir_result {
+    FAT32_READDIR_OK,
+    FAT32_READDIR_END,
+    FAT32_READDIR_INVALID_PATH,
+    FAT32_READDIR_IO_ERROR
+};
+
 // Stores an open FAT32 file
 struct fat32_file {
     uint32_t first_cluster;
@@ -28,7 +89,7 @@ struct fat32_dirent {
 int fat32_init(void);
 
 // Opens a file or directory by path
-// Returns 1 on success
+// Returns a fat32_open_result
 int fat32_open(const char *path, struct fat32_file *file);
 
 // Reads bytes from an open file
@@ -38,29 +99,33 @@ uint32_t fat32_read(struct fat32_file *file, void *buffer, uint32_t size);
 // Writes bytes to an open file, allocating clusters as needed
 // Returns the number of bytes written
 uint32_t fat32_write(struct fat32_file *file, const void *buffer, uint32_t size);
+enum fat32_io_result fat32_read_status(struct fat32_file *file, void *buffer,
+                                        uint32_t size, uint32_t *read);
+enum fat32_io_result fat32_write_status(struct fat32_file *file, const void *buffer,
+                                         uint32_t size, uint32_t *written);
 
 // Creates an empty file at path
-// Returns 1 on success, 0 if it already exists or the parent doesn't
+// Returns a fat32_create_result
 int fat32_create(const char *path);
 
 // Creates a directory at path
-// Returns 1 on success, 0 if it already exists or the parent doesn't
+// Returns a fat32_mkdir_result
 int fat32_mkdir(const char *path);
 
 // Removes a file (not a directory) at path
-// Returns 1 on success
+// Returns a fat32_remove_result
 int fat32_remove(const char *path);
 
 // Moves/renames a file or directory from old_path to new_path
-// Returns 1 on success (0 if the destination already exists)
+// Returns a fat32_rename_result
 int fat32_rename(const char *old_path, const char *new_path);
 
 // Removes an empty directory at path
-// Returns 1 on success (0 if it isn't empty or doesn't exist)
+// Returns a fat32 result
 int fat32_rmdir(const char *path);
 
 // Reads an entry from a directory
-// Returns 1 when the entry exists
+// Returns a fat32_readdir_result
 int fat32_readdir(const char *path, int index, struct fat32_dirent *entry);
 
 #endif

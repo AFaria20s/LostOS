@@ -111,10 +111,11 @@ static int shell_begin_input_redirect(const char *path, int append) {
   struct vfs_file file;
 
   resolve_path(shell_get_cwd(), path, resolved);
-  if (!append && vfs_open(resolved, &file) && !vfs_remove(resolved))
+  if (!append && vfs_open(resolved, &file) == VFS_OK &&
+      vfs_remove(resolved) != VFS_OK)
     return 0;
-  if (!vfs_open(resolved, &file) &&
-      (!vfs_create(resolved) || !vfs_open(resolved, &file)))
+  if (vfs_open(resolved, &file) != VFS_OK &&
+      (vfs_create(resolved) != VFS_OK || vfs_open(resolved, &file) != VFS_OK))
     return 0;
 
   k_strcp(shell_collecting_path, sizeof(shell_collecting_path), resolved);
@@ -133,7 +134,7 @@ static int shell_write_input_line(const char *line) {
     data[i] = line[i];
   data[length++] = '\n';
 
-  if (!vfs_open(shell_collecting_path, &file))
+  if (vfs_open(shell_collecting_path, &file) != VFS_OK)
     return 0;
   file.fat32.offset = file.fat32.size;
   return vfs_write(&file, data, length) == length;
@@ -166,7 +167,8 @@ static void tree_print(const char *path, int depth, uint8_t *has_more_siblings) 
     int count = 0;
 
     // read all entries first to know how many there are
-    while (count < 64 && vfs_readdir(path, count, &entries[count]))
+    while (count < 64 &&
+           vfs_readdir(path, count, &entries[count]) == VFS_OK)
         count++;
 
     for (int i = 0; i < count; i++) {
@@ -231,7 +233,7 @@ static void cmd_cd(int argc, char **argv) {
 
     resolve_path(shell_get_cwd(), argv[1], resolved);
 
-    if (!vfs_open(resolved, &file)) {
+    if (vfs_open(resolved, &file) != VFS_OK) {
       t_print_raw(argv[1]);
       t_print(": not found\n");
       return;
@@ -271,7 +273,7 @@ static void cmd_read(int argc, char **argv) {
 
   resolve_path(shell_get_cwd(), argv[1], resolved);
 
-  if (!vfs_open(resolved, &file)) {
+  if (vfs_open(resolved, &file) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": not found\n");
     return;
@@ -293,7 +295,7 @@ static void cmd_touch(int argc, char **argv) {
 
   resolve_path(shell_get_cwd(), argv[1], resolved);
 
-  if (!vfs_create(resolved)) {
+  if (vfs_create(resolved) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": could not create\n");
   }
@@ -309,7 +311,7 @@ static void cmd_mkdir(int argc, char **argv) {
 
   resolve_path(shell_get_cwd(), argv[1], resolved);
 
-  if (!vfs_mkdir(resolved)) {
+  if (vfs_mkdir(resolved) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": could not create\n");
   }
@@ -325,7 +327,7 @@ static void cmd_rm(int argc, char **argv) {
 
   resolve_path(shell_get_cwd(), argv[1], resolved);
 
-  if (!vfs_remove(resolved)) {
+  if (vfs_remove(resolved) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": could not remove\n");
   }
@@ -341,7 +343,7 @@ static void cmd_rmdir(int argc, char **argv) {
 
   resolve_path(shell_get_cwd(), argv[1], resolved);
 
-  if (!vfs_rmdir(resolved)) {
+  if (vfs_rmdir(resolved) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": could not remove\n");
   }
@@ -359,7 +361,7 @@ static void cmd_mv(int argc, char **argv) {
   resolve_path(shell_get_cwd(), argv[1], source);
   resolve_path(shell_get_cwd(), argv[2], destination);
 
-  if (!vfs_rename(source, destination)) {
+  if (vfs_rename(source, destination) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": could not move\n");
   }
@@ -380,13 +382,13 @@ static void cmd_cp(int argc, char **argv) {
   resolve_path(shell_get_cwd(), argv[1], source);
   resolve_path(shell_get_cwd(), argv[2], destination);
 
-  if (!vfs_open(source, &src)) {
+  if (vfs_open(source, &src) != VFS_OK) {
     t_print_raw(argv[1]);
     t_print(": not found\n");
     return;
   }
 
-  if (!vfs_create(destination)) {
+  if (vfs_create(destination) != VFS_OK) {
     t_print_raw(argv[2]);
     t_print(": could not create\n");
     return;
@@ -395,7 +397,7 @@ static void cmd_cp(int argc, char **argv) {
   {
     struct vfs_file dst;
 
-    if (!vfs_open(destination, &dst)) {
+    if (vfs_open(destination, &dst) != VFS_OK) {
       t_print_raw(argv[2]);
       t_print(": could not open\n");
       return;
@@ -417,7 +419,7 @@ static void cmd_ls(int argc, char **argv) {
 
     resolve_path(shell_get_cwd(), argc > 1 ? argv[1] : ".", path);
 
-    while (vfs_readdir(path, index++, &entry)) {
+    while (vfs_readdir(path, index++, &entry) == VFS_OK) {
       if (entry.attributes & 0x10) // if it is folder
         t_setcolor(vga_entry_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK));
       else
@@ -623,7 +625,7 @@ static int autocomplete_path(const char *input, void (*putc)(char)) {
 
     resolve_path(shell_get_cwd(), directory_input, directory);
 
-    while (vfs_readdir(directory, index++, &entry)) {
+    while (vfs_readdir(directory, index++, &entry) == VFS_OK) {
         if (!name_has_prefix(entry.name, name_prefix))
             continue;
 
@@ -656,7 +658,7 @@ static int autocomplete_path(const char *input, void (*putc)(char)) {
 
     t_putchar('\n');
     index = 0;
-    while (vfs_readdir(directory, index++, &entry)) {
+    while (vfs_readdir(directory, index++, &entry) == VFS_OK) {
         if (!name_has_prefix(entry.name, name_prefix))
             continue;
 
@@ -803,7 +805,7 @@ static void cmd_cat(int argc, char **argv) {
   for (int i = 1; i < argc; i++) {
     char path[256];
     resolve_path(shell_get_cwd(), argv[i], path);
-    if (!vfs_open(path, &file)) {
+    if (vfs_open(path, &file) != VFS_OK) {
       t_print_raw(argv[i]);
       t_print(": not found\n");
       continue;
@@ -996,7 +998,7 @@ static int expand_wildcards(char **argv, int argc, char **expanded_argv,
     int matches = 0;
     for (int index = 0; ; index++) {
       struct vfs_dirent entry;
-      if (!vfs_readdir(resolved_directory, index, &entry))
+      if (vfs_readdir(resolved_directory, index, &entry) != VFS_OK)
         break;
       if (!wildcard_match(pattern, entry.name))
         continue;
@@ -1384,7 +1386,7 @@ static void script_execute(const char *path) {
     char line_buf[256];
     int line_len = 0;
 
-    if (!vfs_open(path, &file))
+    if (vfs_open(path, &file) != VFS_OK)
         return;
 
     while ((bytes_read = vfs_read(&file, buf, sizeof(buf))) > 0) {
@@ -1455,7 +1457,7 @@ static int commands_execute_simple(char *line) {
   k_strcat(script_path, sizeof(script_path), "/bin/", argv[0], "");
   k_strapp(script_path, sizeof(script_path), ".lts");
 
-  if (vfs_open(script_path, &test)) {
+  if (vfs_open(script_path, &test) == VFS_OK) {
       script_execute(script_path);
       return 0;
   }
@@ -1578,7 +1580,7 @@ static int shell_execute_stage(char *line, const char *input, size_t input_lengt
     uint32_t read;
     size_t total = 0;
     resolve_path(shell_get_cwd(), input_path, resolved);
-    if (!vfs_open(resolved, &file)) {
+    if (vfs_open(resolved, &file) != VFS_OK) {
       t_print_raw(input_path);
       t_print(": not found\n");
       return 1;
@@ -1613,15 +1615,15 @@ static int shell_execute_stage(char *line, const char *input, size_t input_lengt
     char resolved[256];
     struct vfs_file file;
     resolve_path(shell_get_cwd(), output_path, resolved);
-    if (!append && vfs_open(resolved, &file)) {
-      if (!vfs_remove(resolved)) {
+    if (!append && vfs_open(resolved, &file) == VFS_OK) {
+      if (vfs_remove(resolved) != VFS_OK) {
         t_print_raw(output_path);
         t_print(": could not overwrite\n");
         return 1;
       }
     }
-    if (!vfs_open(resolved, &file) &&
-        (!vfs_create(resolved) || !vfs_open(resolved, &file))) {
+    if (vfs_open(resolved, &file) != VFS_OK &&
+        (vfs_create(resolved) != VFS_OK || vfs_open(resolved, &file) != VFS_OK)) {
       t_print_raw(output_path);
       t_print(": could not open\n");
       return 1;
